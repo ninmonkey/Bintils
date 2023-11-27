@@ -24,6 +24,8 @@ function New.CompletionResult {
         [string]$ListItemText,
 
         # actual value used in replacement, if not the same as ListItem
+        [AllowEmptyString()]
+        [AllowNull()]
         [Alias('Replacement', 'Replace')]
         [Parameter()]
         [string]$CompletionText,
@@ -72,37 +74,123 @@ function __SortIt.WithoutPrefix {
 
 function __module.Wsl.buildCompletions {@(
 
-    New.CompletionResult -Text '--help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
-    New.CompletionResult -Text 'help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
-    New.CompletionResult -Text '--list' -Replacement '--list' -ResultType ParameterValue -Tooltip @(
-@'
-    --list, -l [Options]
-     Lists distributions.
-
-     Options:
-         --all
-             List all distributions, including distributions that are
-             currently being installed or uninstalled.
-
-         --running
-             List only distributions that are currently running.
-
-         --quiet, -q
-             Only show distribution names.
-
-         --verbose, -v
-             Show detailed information about all distributions.
-
-         --online, -o
-             Displays a list of available distributions for install with 'wsl.exe --install'.
+    New.CompletionResult -Text '--distribution' -Replacement '--distribution ''distro''' -ResultType ParameterValue -Tooltip @'
+--distribution, -d <Distro>
+    Run the specified distribution.
 '@
-        )
+#     New.CompletionResult -Text '--user' -Replacement '--user ''UserName''' -ResultType ParameterValue -Tooltip @'
+# --user, -u <UserName>
+#     Run as the specified user.
+# '@
+#     New.CompletionResult -Text '--system' -Replacement '' -ResultType ParameterValue -Tooltip @'
+# --system
+#     Launches a shell for the system distirbution
+# '@
+#     New.CompletionResult -Text '--debug-shell' -Replacement '' -ResultType ParameterValue -Tooltip 'WSL2 debug session'
+
+#     New.CompletionResult -Text 'List.Online' -Replacement '--list --online' -ResultType ParameterValue -Tooltip 'list online'
+
+#     New.CompletionResult -Text '--install' -Replacement '--install ''distro'' ''options''' -ResultType ParameterValue -Tooltip @'
+#  --install [Distro] [Options...]
+#         Install a Windows Subsystem for Linux distribution.
+#         For a list of valid distributions, use 'wsl.exe --list --online'.
+
+#         Options:
+#             --no-launch, -n
+#                 Do not launch the distribution after install.
+
+#             --web-download
+#                 Download the distribution from the internet instead of the Microsoft Store.
+
+#             --no-distribution
+#                 Only install the required optional components, does not install a distribution.
+# '@
+
+#     New.CompletionResult -Text '--' -Replacement '' -ResultType ParameterValue -Tooltip @'
+# --
+#     pass remaning command as-is
+# '@
+
+#     New.CompletionResult -Text '--cd' -Replacement "--cd 'Directory'" -ResultType ParameterValue -Tooltip @'
+# --cd <Directory>
+#     Sets the specified directory as the current working directory.
+#     If ~ is used the Linux user's home path will be used. If the path begins
+#     with a / character, it will be interpreted as an absolute Linux path.
+#     Otherwise, the value must be an absolute Windows path.
+# '@
+
+#     New.CompletionResult -Text '--exec' -Replacement '' -ResultType ParameterValue -Tooltip @"
+# --exec, -e <CommandLine>
+#     Execute the specified command without using the default Linux shell.
+# "@
+#     New.CompletionResult -Text '--shell-type' -Replacement "--shell-type '<standard|login|none>'" -ResultType ParameterValue -Tooltip @"
+# --shell-type <standard|login|none>
+#         Execute the specified command with the provided shell type.
+# "@
+
+#     New.CompletionResult -Text '--help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
+#     New.CompletionResult -Text 'help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
+#     New.CompletionResult -Text '--list' -Replacement '--list' -ResultType ParameterValue -Tooltip @(
+# @'
+#     --list, -l [Options]
+#      Lists distributions.
+
+#      Options:
+#          --all
+#              List all distributions, including distributions that are
+#              currently being installed or uninstalled.
+
+#          --running
+#              List only distributions that are currently running.
+
+#          --quiet, -q
+#              Only show distribution names.
+
+#          --verbose, -v
+#              Show detailed information about all distributions.
+
+#          --online, -o
+#              Displays a list of available distributions for install with 'wsl.exe --install'.
+# '@
+#         )
 
     )
-    | __SortIt.WithoutPrefix
+    | Sort-Object 'ListItemText' -Unique
+    | __SortIt.WithoutPrefix 'ListItemText'
 }
 
+function Bintils.Wsl.Pipe.AndFixEncoding {
+    <#
+    .SYNOPSIS
+        wsl always outputs utf-16-le, this captures and outputs using the current encoding
+    .NOTES
+    wsl.exe always outputs it's bytes as UTF-16-LE. When PowerShell encodes those bytes it' uses the console encoding set so the \x00 in the output is typically seen as [char]0
+    .EXAMPLE
+        $Dest = gi 'H:\data\2023\pwsh\PsModules\Bintils\wsl.help.txt'
+        Bintils.Wsl.Pipe.AndFixEncoding
+            | set-content $Dest -PassThru -NoNewline
+    #>
+    param(
+        [Parameter()]
+        [Alias('Args', 'ArgList')]
+        [object[]]$ArgumentList = @('--help')
+    )
+    [List[Object]]$binArgs = @()
+    $binArgs.AddRange(@( $ArgumentList ))
+    $binArgs | Join-String -sep ' ' -op 'Invoking wsl with pipeEncodingFix /w args = '
+        | write-verbose
 
+    $lastEnc = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+        $info =
+            & wsl @binArgs
+    }
+    finally {
+        [console]::OutputEncoding = $lastEnc
+    }
+    $info | Join-String -sep "`n"
+}
 
 class WslCompleter : IArgumentCompleter {
 
@@ -232,10 +320,10 @@ function Bintils.Invoke.WslWithCompletions {
         [WslCompletionsAttribute()]
         [string]$Commands
     )
+    write-warning 'attribute not fully working yet'
 
     'invoking wsl' | write-host -back 'magenta'
 }
-
 
 $scriptBlock = {
     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)

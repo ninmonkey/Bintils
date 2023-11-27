@@ -1,0 +1,3 @@
+- `--distro <name>` should complete existing names
+- regex to parse `wsl --help` to build the completions, not manually
+- why does it always complete one named `CompletionText`, verify with a fresh debug session
