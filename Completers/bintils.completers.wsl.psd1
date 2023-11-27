@@ -93,6 +93,8 @@ VariablesToExport = @(
 AliasesToExport = @(
     'Bintils.*'
     'Wsl.*'
+    'bin.Wsl'
+    'b.Wsl'
 )
 
 # DSC resources to export from this module
