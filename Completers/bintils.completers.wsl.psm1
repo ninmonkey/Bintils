@@ -20,7 +20,7 @@ function New.CompletionResult {
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ValidateNotNullOrWhiteSpace()]
-        [string]$ListItem,
+        [string]$ListItemText,
 
         # actual value used in replacement, if not the same as ListItem
         [Alias('Replacement', 'Replace')]
@@ -37,7 +37,7 @@ function New.CompletionResult {
         [Alias('Description', 'Help', 'RenderText')]
         [string[]]$Tooltip
     )
-    [System.ArgumentException]::ThrowIfNullOrWhiteSpace( $ListItem , 'ListItem' )
+    [System.ArgumentException]::ThrowIfNullOrWhiteSpace( $ListItemText , 'ListItemText' )
 
     $Tooltip =  $Tooltip -join "`n"
     if( [string]::IsNullOrEmpty( $Tooltip )) {
@@ -245,7 +245,7 @@ $scriptBlock = {
     return $selected
 }
 __module.OnInit
-'Register-ArgumentCompleter -CommandName ''wsl''' | write-verbose
+'Register-ArgumentCompleter -CommandName ''wsl''' | write-host -fg 'orange'
 Register-ArgumentCompleter -CommandName 'wsl' -Native -ScriptBlock $ScriptBlock -Verbose
 
 
