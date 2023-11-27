@@ -11,6 +11,7 @@ $script:__moduleConfig = @{
 function Bintils.Wsl.Help  {
     Get-Command -m Bintils.completers.wsl
     'https://learn.microsoft.com/en-us/windows/wsl/setup/environment'
+    'try: __module.Wsl.buildCompletions'
 }
 function New.CompletionResult {
     [Alias('New.CR')]
@@ -43,6 +44,9 @@ function New.CompletionResult {
     if( [string]::IsNullOrEmpty( $Tooltip )) {
         $Tooltip = '[⋯]'
     }
+    if( [string]::IsNullOrEmpty( $CompletionText )) {
+        $CompletionText = $ListItemText
+    }
     [CompletionResult]::new(
         <# completionText: #> $completionText,
         <# listItemText  : #> $listItemText,
@@ -50,13 +54,23 @@ function New.CompletionResult {
         <# toolTip       : #> $toolTip)
 }
 
-function __module.OnInit {
+function __module.Wsl.OnInit {
     'loading completer wsl....' | write-host -fg '#c186c1' -bg '#6f7057'
 
     $PSCommandPath | Join-String -op 'Bitils::init wsl completer: {0}' | write-verbose
 }
+function __SortIt.WithoutPrefix {
+    # future: can completer take arguments to the sorting interface? else make it work with one of them
+    param(
+        [ArgumentCompletions(
+            'ListItemText',
+            'CompletionText')]
+        [string]$PropertyName = 'ListItemText'
+    )
+    $Input | Sort-Object { $_.$PropertyName -replace '^-+', '' }
+}
 
-function __module.buildCompletions {@(
+function __module.Wsl.buildCompletions {@(
 
     New.CompletionResult -Text '--help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
     New.CompletionResult -Text 'help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
@@ -84,7 +98,8 @@ function __module.buildCompletions {@(
 '@
         )
 
-    ) | Sort-Object CompletionText
+    )
+    | __SortIt.WithoutPrefix
 }
 
 
@@ -157,7 +172,7 @@ class WslCompleter : IArgumentCompleter {
         # }
         # todo: pass query string filter
         [List[CompletionResult]]$found = @(
-                __module.buildCompletions
+                __module.Wsl.buildCompletions
             )
         return $found
     }
@@ -225,7 +240,7 @@ function Bintils.Invoke.WslWithCompletions {
 $scriptBlock = {
     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
     param($wordToComplete, $commandAst, $cursorPosition)
-    [List[CompletionResult]]$items = @( __module.buildCompletions )
+    [List[CompletionResult]]$items = @( __module.Wsl.buildCompletions )
 
     $FilterProp =
         'ListItemText'
@@ -244,7 +259,7 @@ $scriptBlock = {
 
     return $selected
 }
-__module.OnInit
+__module.Wsl.OnInit
 'Register-ArgumentCompleter -CommandName ''wsl''' | write-host -fg 'orange'
 Register-ArgumentCompleter -CommandName 'wsl' -Native -ScriptBlock $ScriptBlock -Verbose
 
