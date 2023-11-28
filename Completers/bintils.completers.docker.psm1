@@ -11,6 +11,14 @@ $script:__moduleConfig = @{
 function Bintils.Docker.Wsl.Help  {
     Get-Command -m Bintils.completers.Docker
     'try: __module.Docker.buildCompletions'
+    '- [Build Cache](https://docs.docker.com/build/cache/)'
+    'https://docs.docker.com/build/building/multi-stage/#use-an-external-image-as-a-stage'
+    'https://docs.docker.com/build/building/multi-stage/#differences-between-legacy-builder-and-buildkit'
+    'try'
+    @(
+        '#docker'
+        "type 'log<tab> build.stag<tab>'  # then alt+a and ctrl+z for fancy reverse"
+    )
 
 
 }
@@ -84,7 +92,34 @@ function __module.Docker.buildCompletions {
     #>
     param()
     @(
-        New.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip ''
+
+        New.CompletionResult -Text 'Log.Debug' -Replacement "--log-level=debug" -ResultType ParameterValue -Tooltip ''
+        New.CompletionResult -Text 'Example.Build.Stage' -Replacement "docker build --target build --tag hello ." -ResultType ParameterValue -Tooltip ''
+
+        New.CompletionResult -Text 'Example.Build' -Replacement "build --tag welcome-to-docker ." -ResultType ParameterValue -Tooltip @'
+see:
+
+- https://docs.docker.com/guides/walkthroughs/run-a-container/
+- https://docs.docker.com/engine/reference/commandline/build/
+
+    > build --tag welcome-to-docker .
+    > build -t welcome-to-docker .      # abbr
+
+
+'@
+        New.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip @'
+see:
+
+- https://docs.docker.com/get-started/overview/#example-docker-run-command
+- https://docs.docker.com/engine/reference/commandline/run/
+
+    > docker run --interactive --tty ubuntu /bin/bash
+    > docker run -i -t ubuntu /bin/bash     # abbr
+
+
+    > docker pull ubuntu            # implicitly runs
+    > docker container create
+'@
 
     )
     # | Sort-Object 'ListItemText' -Unique
