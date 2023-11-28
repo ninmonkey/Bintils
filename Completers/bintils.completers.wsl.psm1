@@ -172,6 +172,10 @@ function Bintils.Wsl.Pipe.AndFixEncoding {
     #>
     param(
         [Parameter()]
+        [ArgumentCompletions(
+            '--help',
+            "'--list', '--running'"
+        )]
         [Alias('Args', 'ArgList')]
         [object[]]$ArgumentList = @('--help')
     )
@@ -190,6 +194,44 @@ function Bintils.Wsl.Pipe.AndFixEncoding {
         [console]::OutputEncoding = $lastEnc
     }
     $info | Join-String -sep "`n"
+}
+function Bintils.Wsl.Stream {
+    <#
+    .SYNOPSIS
+        wsl always outputs utf-16-le, this captures and outputs using the current encoding
+    .NOTES
+    wsl.exe always outputs it's bytes as UTF-16-LE. When PowerShell encodes those bytes it' uses the console encoding set so the \x00 in the output is typically seen as [char]0
+    .EXAMPLE
+        $Dest = gi 'H:\data\2023\pwsh\PsModules\Bintils\wsl.help.txt'
+        Bintils.Wsl.Pipe.AndFixEncoding
+            | set-content $Dest -PassThru -NoNewline
+    #>
+    param(
+        [Parameter()]
+        [ArgumentCompletions(
+            '--help',
+            "'--list', '--running'"
+        )]
+        [Alias('Args', 'ArgList')]
+        [object[]]$ArgumentList = @('--help')
+    )
+    [List[Object]]$binArgs = @()
+    $binArgs.AddRange(@( $ArgumentList ))
+    $binArgs | Join-String -sep ' ' -op 'Invoking wsl with pipeEncodingFix /w args = '
+        | write-verbose
+
+    $lastEnc = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+        & wsl @binArgs
+        # | %{
+        #     $_
+        # }
+    }
+    finally {
+        [console]::OutputEncoding = $lastEnc
+    }
+    # $info | Join-String -sep "`n"
 }
 
 class WslCompleter : IArgumentCompleter {
