@@ -72,8 +72,19 @@ function __SortIt.WithoutPrefix {
     $Input | Sort-Object { $_.$PropertyName -replace '^-+', '' }
 }
 
-function __module.Wsl.buildCompletions {@(
+function __module.Wsl.buildCompletions {
+    <#
+    .example
+        wsl --distribution 'ubuntu' -- pwsh -nop -C 'get-childitem'
+    .example
+        wsl --distribution 'ubuntu' -- ls --color=always
+    #>
+    param()
+    @(
 
+    New.CompletionResult -Text 'Distro.Docker.Desktop' -Replacement "--distribution 'docker-desktop'" -ResultType ParameterValue -Tooltip ''
+    New.CompletionResult -Text 'Distro.Docker.Data' -Replacement "--distribution 'docker-desktop-data'" -ResultType ParameterValue -Tooltip ''
+    New.CompletionResult -Text 'Distro.Ubuntu' -Replacement "--distribution 'Ubuntu'" -ResultType ParameterValue -Tooltip ''
     New.CompletionResult -Text '--distribution' -Replacement '--distribution ''distro''' -ResultType ParameterValue -Tooltip @'
 --distribution, -d <Distro>
     Run the specified distribution.
@@ -91,7 +102,35 @@ function __module.Wsl.buildCompletions {@(
     New.CompletionResult -Text '--unmount' -Replacement "" -ResultType ParameterValue -Tooltip ''
     New.CompletionResult -Text '--status' -Replacement "" -ResultType ParameterValue -Tooltip ''
     New.CompletionResult -Text '--update' -Replacement "" -ResultType ParameterValue -Tooltip ''
+    New.CompletionResult -Text '--unregister' -Replacement "" -ResultType ParameterValue -Tooltip ''
+    New.CompletionResult -Text '--import-in-place' -Replacement "--import-in-place 'Distro' 'filename.vhdx'" -ResultType ParameterValue -Tooltip @'
+--import-in-place <Distro> <FileName>
+    Imports the specified .vhdx file as a new distribution.
+    This virtual hard disk must be formatted with the ext4 filesystem type.
 
+'@
+    New.CompletionResult -Text '--import' -Replacement "" -ResultType ParameterValue -Tooltip @'
+--import <Distro> <InstallLocation> <FileName> [Options]
+    Imports the specified tar file as a new distribution.
+    The filename can be - for stdin.
+
+    Options:
+        --version <Version>
+            Specifies the version to use for the new distribution.
+
+        --vhd
+            Specifies that the provided file is a .vhdx file, not a tar file.
+            This operation makes a copy of the .vhdx file at the specified install location.
+'@
+    New.CompletionResult -Text '--export' -Replacement "" -ResultType ParameterValue -Tooltip @'
+--export <Distro> <FileName> [Options]
+    Exports the distribution to a tar file.
+    The filename can be - for stdout.
+
+    Options:
+        --vhd
+            Specifies that the distribution should be exported as a .vhdx file.
+'@
 
     New.CompletionResult -Text '--set-default-version' -Replacement "--set-default-version" -ResultType ParameterValue -Tooltip 'for new distros'
     New.CompletionResult -Text '--mount' -Replacement "--mount 'Disk'" -ResultType ParameterValue -Tooltip '--mount <disk> [options]'
