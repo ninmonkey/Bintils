@@ -10,8 +10,36 @@ $script:__moduleConfig = @{
 
 function Bintils.Wsl.Help  {
     Get-Command -m Bintils.completers.wsl
-    'https://learn.microsoft.com/en-us/windows/wsl/setup/environment'
+    'https://learn.microsoft.com/en-us/windows/wsl/filesystems'
+    'https://learn.microsoft.com/en-us/windows/wsl/setup/environment#basic-wsl-commands'
+    'https://learn.microsoft.com/en-us/windows/wsl/wsl2-mount-disk'
+    'https://learn.microsoft.com/en-us/windows/wsl/disk-space'
+
     'try: __module.Wsl.buildCompletions'
+
+    'try some commands'
+
+    @(
+
+        'lspci', 'lsusb', 'usbview',
+        'nvim',
+        'man', 'wc', 'ls',
+        'printf', 'cat', 'pwd',
+        'who','where',
+        'sudo apt-get install -y powershell'
+        'ls /mnt/wsl',
+        'ls /etc/host',
+        'cat /etc/fstab',
+        'cat /proc/cpuinfo',
+        'systemctl list-unit-files --type=service',
+        'uname',
+        'cat /etc/lsb-release',
+        'cat /etc/os-release',
+        'cat /etc/lsb-release',
+        'lsblk'
+    )
+        | Join.UL
+
 }
 function New.CompletionResult {
     [Alias('New.CR')]
@@ -76,6 +104,8 @@ function __module.Wsl.buildCompletions {
     <#
     .example
         wsl --distribution 'ubuntu' -- pwsh -nop -C 'get-childitem'
+    .example
+        wsl --distribution 'ubuntu' -- man apt-get
     .example
         wsl --distribution 'ubuntu' -- ls --color=always
     #>
