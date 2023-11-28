@@ -1,0 +1,5 @@
+- `fd`
+- `fzf`
+- `ripgrep`
+- [netsh](https://learn.microsoft.com/en-us/windows-server/networking/technologies/netsh/netsh-contexts)
+- [aws sam](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html)

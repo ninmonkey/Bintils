@@ -17,3 +17,5 @@
 - [Using USB Devices](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)
 - [manage disk space](https://learn.microsoft.com/en-us/windows/wsl/disk-space)
 - [Import any Linux distro](https://learn.microsoft.com/en-us/windows/wsl/use-custom-distro)
+- [accessing a WSL2 distro from the LAN](https://learn.microsoft.com/en-us/windows/wsl/networking)
+  - using [netsh-interface-portproxy](https://learn.microsoft.com/en-us/windows-server/networking/technologies/netsh/netsh-interface-portproxy)
