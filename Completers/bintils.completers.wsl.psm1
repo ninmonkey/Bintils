@@ -78,84 +78,103 @@ function __module.Wsl.buildCompletions {@(
 --distribution, -d <Distro>
     Run the specified distribution.
 '@
-#     New.CompletionResult -Text '--user' -Replacement '--user ''UserName''' -ResultType ParameterValue -Tooltip @'
-# --user, -u <UserName>
-#     Run as the specified user.
-# '@
-#     New.CompletionResult -Text '--system' -Replacement '' -ResultType ParameterValue -Tooltip @'
-# --system
-#     Launches a shell for the system distirbution
-# '@
-#     New.CompletionResult -Text '--debug-shell' -Replacement '' -ResultType ParameterValue -Tooltip 'WSL2 debug session'
+    New.CompletionResult -Text '--user' -Replacement '--user ''UserName''' -ResultType ParameterValue -Tooltip @'
+--user, -u <UserName>
+    Run as the specified user.
+'@
+    New.CompletionResult -Text '--system' -Replacement '' -ResultType ParameterValue -Tooltip @'
+--system
+    Launches a shell for the system distirbution
+'@
 
-#     New.CompletionResult -Text 'List.Online' -Replacement '--list --online' -ResultType ParameterValue -Tooltip 'list online'
+    New.CompletionResult -Text '--shutdown' -Replacement "" -ResultType ParameterValue -Tooltip 'terminate all'
+    New.CompletionResult -Text '--unmount' -Replacement "" -ResultType ParameterValue -Tooltip ''
+    New.CompletionResult -Text '--status' -Replacement "" -ResultType ParameterValue -Tooltip ''
+    New.CompletionResult -Text '--update' -Replacement "" -ResultType ParameterValue -Tooltip ''
 
-#     New.CompletionResult -Text '--install' -Replacement '--install ''distro'' ''options''' -ResultType ParameterValue -Tooltip @'
-#  --install [Distro] [Options...]
-#         Install a Windows Subsystem for Linux distribution.
-#         For a list of valid distributions, use 'wsl.exe --list --online'.
 
-#         Options:
-#             --no-launch, -n
-#                 Do not launch the distribution after install.
+    New.CompletionResult -Text '--set-default-version' -Replacement "--set-default-version" -ResultType ParameterValue -Tooltip 'for new distros'
+    New.CompletionResult -Text '--mount' -Replacement "--mount 'Disk'" -ResultType ParameterValue -Tooltip '--mount <disk> [options]'
+        '--vhd', '--bare', '--name <name>', '--type <type>', '--options <options>', '--partition'
+    New.CompletionResult -Text '--manage' -Replacement "--manage 'Distro' 'options' <# --set-sparse <true|false> #> " -ResultType ParameterValue -Tooltip 'WSL2 debug session'
+    New.CompletionResult -Text '--debug-shell' -Replacement '' -ResultType ParameterValue -Tooltip 'WSL2 debug session'
 
-#             --web-download
-#                 Download the distribution from the internet instead of the Microsoft Store.
 
-#             --no-distribution
-#                 Only install the required optional components, does not install a distribution.
-# '@
+    New.CompletionResult -Text 'List.All' -Replacement '--list --all' -ResultType ParameterValue -Tooltip 'List all distributions',
+        'including distributions that are currently being installed or uninstalled'
 
-#     New.CompletionResult -Text '--' -Replacement '' -ResultType ParameterValue -Tooltip @'
-# --
-#     pass remaning command as-is
-# '@
+    New.CompletionResult -Text 'List.Online' -Replacement '--list --online' -ResultType ParameterValue -Tooltip 'list online'
 
-#     New.CompletionResult -Text '--cd' -Replacement "--cd 'Directory'" -ResultType ParameterValue -Tooltip @'
-# --cd <Directory>
-#     Sets the specified directory as the current working directory.
-#     If ~ is used the Linux user's home path will be used. If the path begins
-#     with a / character, it will be interpreted as an absolute Linux path.
-#     Otherwise, the value must be an absolute Windows path.
-# '@
+    New.CompletionResult -Text '--install' -Replacement '--install ''distro'' ''options''' -ResultType ParameterValue -Tooltip @'
+ --install [Distro] [Options...]
+        Install a Windows Subsystem for Linux distribution.
+        For a list of valid distributions, use 'wsl.exe --list --online'.
 
-#     New.CompletionResult -Text '--exec' -Replacement '' -ResultType ParameterValue -Tooltip @"
-# --exec, -e <CommandLine>
-#     Execute the specified command without using the default Linux shell.
-# "@
-#     New.CompletionResult -Text '--shell-type' -Replacement "--shell-type '<standard|login|none>'" -ResultType ParameterValue -Tooltip @"
-# --shell-type <standard|login|none>
-#         Execute the specified command with the provided shell type.
-# "@
+        Options:
+            --no-launch, -n
+                Do not launch the distribution after install.
 
-#     New.CompletionResult -Text '--help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
-#     New.CompletionResult -Text 'help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
-#     New.CompletionResult -Text '--list' -Replacement '--list' -ResultType ParameterValue -Tooltip @(
-# @'
-#     --list, -l [Options]
-#      Lists distributions.
+            --web-download
+                Download the distribution from the internet instead of the Microsoft Store.
 
-#      Options:
-#          --all
-#              List all distributions, including distributions that are
-#              currently being installed or uninstalled.
+            --no-distribution
+                Only install the required optional components, does not install a distribution.
+'@
 
-#          --running
-#              List only distributions that are currently running.
+    New.CompletionResult -Text '--' -Replacement '' -ResultType ParameterValue -Tooltip @'
+--
+    pass remaning command as-is
+'@
 
-#          --quiet, -q
-#              Only show distribution names.
+    New.CompletionResult -Text '--cd' -Replacement "--cd 'Directory'" -ResultType ParameterValue -Tooltip @'
+--cd <Directory>
+    Sets the specified directory as the current working directory.
+    If ~ is used the Linux user's home path will be used. If the path begins
+    with a / character, it will be interpreted as an absolute Linux path.
+    Otherwise, the value must be an absolute Windows path.
+'@
 
-#          --verbose, -v
-#              Show detailed information about all distributions.
+    New.CompletionResult -Text '--exec' -Replacement '' -ResultType ParameterValue -Tooltip @"
+--exec, -e <CommandLine>
+    Execute the specified command without using the default Linux shell.
+"@
+    New.CompletionResult -Text '--shell-type' -Replacement "--shell-type '<standard|login|none>'" -ResultType ParameterValue -Tooltip @"
+--shell-type <standard|login|none>
+        Execute the specified command with the provided shell type.
+"@
 
-#          --online, -o
-#              Displays a list of available distributions for install with 'wsl.exe --install'.
-# '@
-#         )
+    New.CompletionResult -Text '--help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
+    New.CompletionResult -Text 'help' -Replacement '--help' -ResultType ParameterValue -Tooltip '...'
+    New.CompletionResult -Text '--list' -Replacement "'--list --verbose'"  -ResultType ParameterValue -Tooltip '...'
+    New.CompletionResult -Text '--list' -Replacement '--list' -ResultType ParameterValue -Tooltip @(
+@'
+    --list, -l [Options]
+     Lists distributions.
+
+
+
+     Options:
+         --all
+             List all distributions, including distributions that are
+             currently being installed or uninstalled.
+
+         --running
+             List only distributions that are currently running.
+
+         --quiet, -q
+             Only show distribution names.
+
+         --verbose, -v
+             Show detailed information about all distributions.
+
+         --online, -o
+             Displays a list of available distributions for install with 'wsl.exe --install'.
+'@
+        )
 
     )
-    | Sort-Object 'ListItemText' -Unique
+    # | Sort-Object 'ListItemText' -Unique
+    | Sort-Object 'CompletionText' -Unique
     | __SortIt.WithoutPrefix 'ListItemText'
 }
 
@@ -373,12 +392,14 @@ $scriptBlock = {
     [List[CompletionResult]]$items = @( __module.Wsl.buildCompletions )
 
     $FilterProp =
-        'ListItemText'
-        'CompletionText'
+        'ListItemText' # 'CompletionText'
 
     [List[CompletionResult]]$selected =
         $items | ?{
             $matchesAny = (
+                $_.$FilterProp -match $WordToComplete -or
+                $_.$FilterProp -match [regex]::escape( $WordToComplete ) -or
+                # // or statically
                 $_.ListItemText -match $wordToComplete -or
                 $_.CompletionText -match $wordToComplete -or
                 $_.ListItemText -match [regex]::escape( $wordToComplete ) -or
