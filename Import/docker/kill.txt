@@ -1,0 +1,7 @@
+
+Usage:  docker kill [OPTIONS] CONTAINER [CONTAINER...]
+
+Kill one or more running containers
+
+Options:
+  -s, --signal string   Signal to send to the container (default "KILL")

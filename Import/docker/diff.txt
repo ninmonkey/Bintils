@@ -1,0 +1,4 @@
+
+Usage:  docker diff CONTAINER
+
+Inspect changes to files or directories on a container's filesystem

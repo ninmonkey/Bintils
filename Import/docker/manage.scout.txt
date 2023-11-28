@@ -1,0 +1,10 @@
+
+Usage:  docker scout COMMAND
+
+Command line tool for Docker Scout
+
+Commands:
+  cves        Display CVEs identified in a software artifact
+  version     Show Docker Scout version information
+
+Run 'docker scout COMMAND --help' for more information on a command.

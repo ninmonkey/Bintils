@@ -1,0 +1,14 @@
+Log out from a Docker registry or cloud backend.
+If no server is specified, the default is defined by the daemon.
+
+Usage:
+  docker logout [SERVER] [flags]
+  docker logout [command]
+
+Available Commands:
+  azure       Logout from Azure
+
+Flags:
+  -h, --help   Help for logout
+
+Use "docker logout [command] --help" for more information about a command.

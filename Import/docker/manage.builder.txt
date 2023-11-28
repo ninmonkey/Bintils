@@ -1,0 +1,10 @@
+
+Usage:  docker builder COMMAND
+
+Manage builds
+
+Commands:
+  build       Build an image from a Dockerfile
+  prune       Remove build cache
+
+Run 'docker builder COMMAND --help' for more information on a command.

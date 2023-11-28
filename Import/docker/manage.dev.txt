@@ -1,0 +1,26 @@
+
+Usage:  docker dev [OPTIONS] COMMAND
+
+Docker Dev Environments CLI interface
+
+Options:
+  -s, --socket string   Sets the path to the unix socket or pipe to be
+                        targeted. Can also be set through the environment
+                        variable DOCKER_DEV_ENVS_SOCKET_PATH
+  -v, --version         Display version of the dev plugin
+
+Management Commands:
+  service     Service management on a dev environment
+
+Commands:
+  check       Check Dev Environments
+  create      Create a new dev environment
+  list        Lists all Dev Environments
+  logs        Traces logs from a dev environment
+  open        Open Dev Environment with the IDE
+  rm          Removes a dev environment
+  start       Starts a dev environment
+  stop        Stops a dev environment
+  version     Show the Docker Dev version information
+
+Run 'docker dev COMMAND --help' for more information on a command.

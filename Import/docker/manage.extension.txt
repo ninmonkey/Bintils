@@ -1,0 +1,22 @@
+
+Usage:  docker extension [OPTIONS] COMMAND
+
+Manages Docker extensions
+
+Options:
+      --socket string   The Desktop extension manager socket
+
+Management Commands:
+  dev             Extension development helpers
+
+Commands:
+  init            Create a new Docker Extension based on a template.
+  install         Install a Docker extension with the specified image
+  ls              List installed Docker extensions
+  rm              Remove a Docker extension
+  share           Generate a link to share the extension.
+  update          Remove and re-install a Docker extension
+  validate        Validate an extension image or metadata file
+  version         Print the client and server versions
+
+Run 'docker extension COMMAND --help' for more information on a command.

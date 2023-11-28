@@ -1,0 +1,9 @@
+Show the Docker version information
+
+Usage:
+  docker version [flags]
+
+Flags:
+  -f, --format string       Format the output. Values: [pretty | json]. (Default: pretty)
+  -h, --help                Help for version
+      --kubeconfig string   Kubernetes config file

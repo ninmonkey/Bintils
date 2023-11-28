@@ -1,0 +1,39 @@
+
+Usage:  docker sbom [OPTIONS] COMMAND
+
+View the packaged-based Software Bill Of Materials (SBOM) for an image.
+
+EXPERIMENTAL: The flags and outputs of this command may change. Leave feedback on https://github.com/docker/sbom-cli-plugin.
+
+Examples:
+
+  docker sbom alpine:latest                                          a summary of discovered packages
+  docker sbom alpine:latest --format syft-json                       show all possible cataloging details
+  docker sbom alpine:latest --output sbom.txt                        write report output to a file
+  docker sbom alpine:latest --exclude /lib  --exclude '**/*.db'      ignore one or more paths/globs in the image
+
+
+Options:
+  -D, --debug                 show debug logging
+      --exclude stringArray   exclude paths from being scanned using a
+                              glob expression
+      --format string         report output format, options=[syft-json
+                              cyclonedx-xml cyclonedx-json github-0-json
+                              spdx-tag-value spdx-json table text]
+                              (default "table")
+      --layers string         [experimental] selection of layers to
+                              catalog, options=[squashed all] (default
+                              "squashed")
+  -o, --output string         file to write the default report output to
+                              (default is STDOUT)
+      --platform string       an optional platform specifier for
+                              container image sources (e.g.
+                              'linux/arm64', 'linux/arm64/v8', 'arm64',
+                              'linux')
+      --quiet                 suppress all non-report output
+  -v, --version               version for sbom
+
+Commands:
+  version     Show Docker sbom version information
+
+Run 'docker sbom COMMAND --help' for more information on a command.

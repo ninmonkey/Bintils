@@ -1,0 +1,4 @@
+
+Usage:  docker rename CONTAINER NEW_NAME
+
+Rename a container
