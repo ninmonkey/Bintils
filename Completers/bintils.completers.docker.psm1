@@ -127,42 +127,43 @@ see:
     | __SortIt.WithoutPrefix 'ListItemText'
 }
 
-function Bintils.Docker.Wsl.Pipe.AndFixEncoding {
-    <#
-    .SYNOPSIS
-        wsl always outputs utf-16-le, this captures and outputs using the current encoding
-    .NOTES
-    wsl.exe always outputs it's bytes as UTF-16-LE. When PowerShell encodes those bytes it' uses the console encoding set so the \x00 in the output is typically seen as [char]0
-    .EXAMPLE
-        $Dest = gi 'H:\data\2023\pwsh\PsModules\Bintils\wsl.help.txt'
-        Bintils.Docker.Wsl.Pipe.AndFixEncoding
-            | set-content $Dest -PassThru -NoNewline
-    #>
-    param(
-        [Parameter()]
-        [ArgumentCompletions(
-            '--help',
-            "'--list', '--running'"
-        )]
-        [Alias('Args', 'ArgList')]
-        [object[]]$ArgumentList = @('--help')
-    )
-    [List[Object]]$binArgs = @()
-    $binArgs.AddRange(@( $ArgumentList ))
-    $binArgs | Join-String -sep ' ' -op 'Invoking wsl with pipeEncodingFix /w args = '
-        | write-verbose
+# function Bintils.Docker.Wsl.Pipe.AndFixEncoding {
+#     <#
+#     .SYNOPSIS
+#         wsl always outputs utf-16-le, this captures and outputs using the current encoding
+#     .NOTES
+#     wsl.exe always outputs it's bytes as UTF-16-LE. When PowerShell encodes those bytes it' uses the console encoding set so the \x00 in the output is typically seen as [char]0
+#     .EXAMPLE
+#         $Dest = gi 'H:\data\2023\pwsh\PsModules\Bintils\wsl.help.txt'
+#         Bintils.Docker.Wsl.Pipe.AndFixEncoding
+#             | set-content $Dest -PassThru -NoNewline
+#     #>
+#     param(
+#         [Parameter()]
+#         [ArgumentCompletions(
+#             '--help',
+#             "'--list', '--running'"
+#         )]
+#         [Alias('Args', 'ArgList')]
+#         [object[]]$ArgumentList = @('--help')
+#     )
+#     throw 'replaced by: "Bintils.Docker.Wsl.Stream"'
+#     [List[Object]]$binArgs = @()
+#     $binArgs.AddRange(@( $ArgumentList ))
+#     $binArgs | Join-String -sep ' ' -op 'Invoking wsl with pipeEncodingFix /w args = '
+#         | write-verbose
 
-    $lastEnc = [Console]::OutputEncoding
-    try {
-        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
-        $info =
-            & wsl @binArgs
-    }
-    finally {
-        [console]::OutputEncoding = $lastEnc
-    }
-    $info | Join-String -sep "`n"
-}
+#     $lastEnc = [Console]::OutputEncoding
+#     try {
+#         [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+#         $info =
+#             & wsl @binArgs
+#     }
+#     finally {
+#         [console]::OutputEncoding = $lastEnc
+#     }
+#     $info | Join-String -sep "`n"
+# }
 function Bintils.Docker.Wsl.Stream {
     <#
     .SYNOPSIS
@@ -173,6 +174,10 @@ function Bintils.Docker.Wsl.Stream {
         $Dest = gi 'H:\data\2023\pwsh\PsModules\Bintils\wsl.help.txt'
         Bintils.Docker.Wsl.Pipe.AndFixEncoding
             | set-content $Dest -PassThru -NoNewline
+    .LINK
+        Bintils.Docker.Wsl.Stream
+    .LINK
+        H:\data\2023\pwsh\PsModules.👨.Import\Jaykul👨\Jaykul👨Invoke-Native\Jaykul👨Invoke-Native.psm1
     #>
     param(
         [Parameter()]
