@@ -1,0 +1,53 @@
+# source: Jaykul @ gist: <https://gist.github.com/Jaykul/53db7b8c095d9bcfa4a8466742ae12a3>
+
+using namespace Microsoft.Azure.Commands.Common.Authentication.Abstractions
+using namespace System.Management.Automation.Language
+using namespace System.Management.Automation
+using namespace System.Collections.Generic
+using namespace System.Collections
+
+[AttributeUsage("Property,Field")]
+class SubscriptionNameCompleter : ArgumentCompleterAttribute {
+    # PowerShell expects you to write IArgumentCompleter and register them with this syntax:
+    #     [ArgumentCompleter([MyIArgumentCompleter])]
+    # Or to use scriptblocks with:
+    #     [ArgumentCompleter({ code })]
+
+    # Here, we combine an override for Argumentcompleter with the second syntax, meaning this can be used like:
+    #     [SubscriptionNameCompleter()]
+    # Or as a parameter to RegisterArgumentCompleter, like this:
+    #     Get-Command -Module Az.* -ParameterName SubscriptionName | % {
+    #         Register-ArgumentCompleter -Command $_.Name -ParameterName SubscriptionName -ScriptBlock ([SubscriptionNameCompleter]::GetCompleter())
+    #     }
+    SubscriptionNameCompleter() : base([scriptblock][SubscriptionNameCompleter]::GetCompleter()) {}
+
+    [scriptblock] static GetCompleter() {
+         return {
+            param([String]$commandName, [String]$parameterName, [String]$wordToComplete, [CommandAst]$commandAst, [IDictionary]$fakeBoundParameter)
+            # This test ensures this tab completer doesn't crash when the assembly dependency isn't loaded
+            if (($Provider = "Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider" -as [Type])) {
+                # In this tab completer, we're relying on the stuff inside the Azure module for tab completers...
+                $Provider::Instance.Profile.Subscriptions.Where({
+                    # Note this is NOT the normal Where method, it's a LINQ filter (thus, $Args[0] instead of $_)
+                    ($null -ne $args[0]) -and
+                    ($args[0].ExtendedProperties["Account"] -eq $Provider::Instance.Profile.DefaultContext.Account.Id) -and
+                    ($args[0].Name -Like "*$wordToComplete*")
+                }).ForEach({
+                    $ListItemText = $_.Name
+                    # For extra credit: Highlighting the ListItemText for the default value makes it sort first!
+                    if ($_.Id -eq $Provider::Instance.Profile.DefaultContext.Subscription.Id) {
+                        $ListItemText = "$([char]27)[96m$($ListItemText)$([char]27)[39m"
+                    }
+                    # More extra credit: The tooltip (and the ListItemText) show up in PSReadLine's Ctrl+Space UX:
+                    $Tooltip = ($_ | Format-List Name,
+                        @{N = "Account"; E = { $_.ExtendedProperties["Account"] } },
+                        @{N = "Environment"; E = { $_.ExtendedProperties["Environment"] } },
+                        @{N = "Enabled"; E = { $_.State -eq "Enabled"}} | Out-String -Stream).ForEach("Trim") -join "`n"
+
+                     # The actual things we output are CompletionResults
+                    [CompletionResult]::new("'$($_.Name)'", $ListItemText, 'ParameterValue', $Tooltip)
+                }) | Sort-Object ListItemText
+            }
+        }
+    }
+}
