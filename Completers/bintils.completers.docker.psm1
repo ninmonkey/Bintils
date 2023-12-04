@@ -207,6 +207,177 @@ function Bintils.Docker.Wsl.Stream {
     # $info | Join-String -sep "`n"
 }
 
+$updateTypeDataSplat = @{
+    Force = $true
+    TypeName = 'Bintils.Docker.Image.ParsedResult'
+    DefaultDisplayPropertySet = @(
+        'Repository',
+        'Tag',
+        'Created',
+        'Size',
+        'ImageId'
+    )
+}
+
+Update-TypeData @updateTypeDataSplat
+
+function Bintils.Docker.Parse.Images {
+    <#
+    .SYNOPSIS
+        parse docker images command
+    .EXAMPLE
+        Pwsh> Bintils.Docker.Parse.Images
+    .EXAMPLE
+        Pwsh> Bintils.Docker.Parse.Images -ListRepoNames
+
+            <none>
+            custom-docker
+            public.ecr.aws/amazonlinux/amazonlinux
+            public.ecr.aws/lambda/provided
+            public.ecr.aws/sam/build-provided.al2
+            public.ecr.aws/sam/build-provided.al2023
+    .EXAMPLE
+        Pwsh> Bintils.Docker.Parse.Images -SummarizeCounts
+
+        Count Name
+        ----- ----
+            39 <none>
+            18 public.ecr.aws/lambda/provided
+            6 public.ecr.aws/sam/build-provided.al2
+            3 samcli/lambda-provided
+            2 public.ecr.aws/amazonlinux/amazonlinux
+            1 custom-docker
+            1 public.ecr.aws/sam/build-provided.al2023
+            1 ubuntu
+            1 welcome-to-docker
+    .notes
+
+    Usage:  docker images [OPTIONS] [REPOSITORY[:TAG]]
+
+    List images
+
+        Options:
+        -a, --all             Show all images (default hides intermediate images)
+            --digests         Show digests
+        -f, --filter filter   Filter output based on conditions provided
+            --format string   Pretty-print images using a Go template
+            --no-trunc        Don't truncate output
+        -q, --quiet           Only show image IDs
+    #>
+    param(
+        # docker images --all
+        [Alias('IncludeIntermediateImages')]
+        [switch]$All,
+        [switch]$ReplaceNoneString,
+
+        # return only the distinct values
+        [switch]$ListRepoNames,
+
+        # return only the distinct values
+        [switch]$ListTagNames,
+
+        [switch]$SummarizeCounts,
+
+        [ValidateSet(
+            'Repository',
+            'Tag',
+            'Created',
+            'Size',
+            'ImageId'
+        )]
+        [string]$SortBy
+    )
+    [List[Object]]$BinArgs = @(
+        'images'
+        if($All) { '--all' }
+        # '--digests'
+        '--no-trunc'
+    )
+    $Options = @{
+        ReplaceNoneString = $ReplaceNoneString # $true
+    }
+
+    if($SortyBy -in @('Created', 'Size')) {
+        Write-warning 'NYI: todo: parse Created and Size to numerical types'
+    }
+
+    $lines = & docker @BinArgs
+        | Select -Skip 1
+    $regex = @{}
+    $Regex.Line = @'
+(?x)
+^
+    (?<Repository>
+        .*?
+    )
+    # always 3+spaces delims
+    \s{3,}
+    (?<Tag>
+        .*?
+    )
+    \s{3,}
+    (?<ImageId>
+        .*?
+    )
+    \s{3,}
+    (?<Created>
+        .*?
+    )
+    \s{3,}
+    (?<Size>
+        .*?
+    )
+$
+'@
+    $regex.NoneString = [regex]::escape('<none>')
+    $found = $Lines | %{
+        $curLine = $_
+        if($_ -match $Regex.Line) {
+            $matches.remove(0)
+            $meta = [hashtable]::new($matches)
+            $meta.PSTypeName = 'Bintils.Docker.Image.ParsedResult'
+
+            if($Options.ReplaceNoneString) {
+                $meta.Tag = $meta.Tag -replace $regex.NoneString, ''
+                $meta.Repository = $meta.Repository -replace $regex.NoneString, ''
+            }
+            [pscustomobject]$meta
+        } else {
+            'failed parsing line: {0}' -f $curLine
+                | write-warning
+        }
+    }
+
+    if($SummarizeCounts)  {
+        $Found
+            | Group-Object Repository -NoElement
+            | Sort-Object Count -Descending | ft -AutoSize
+            | Out-String
+            | write-host
+
+        $Found
+            | Group-Object Tag -NoElement
+            | Sort-Object Count -Descending | ft -AutoSize
+            | Out-String
+            | write-host
+        return
+    }
+
+    if($ListRepoNames){
+        return $found.Repository | Sort-Object -unique
+    }
+    if($ListTagNames){
+        return $found.Tag | Sort-Object -unique
+    }
+
+    if($PSBoundParameters.ContainsKey('Sortby')) {
+        return $found | Sort-Object -p $SortBy
+    }
+
+    return $found
+
+}
+
 class DockerCompleter : IArgumentCompleter {
 
     # hidden [hashtable]$Options = @{
