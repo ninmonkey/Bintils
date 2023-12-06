@@ -19,8 +19,33 @@ function Bintils.Docker.Wsl.Help  {
         '#docker'
         "type 'log<tab> build.stag<tab>'  # then alt+a and ctrl+z for fancy reverse"
     )
+}
+function Bintils.Docker.Help {
+    [CmdletBinding()]
+    param()
+
+    $docRecord = @{ TopicName = 'Dockerfile_Reference'
+        Description = 'top-level Dockerfile reference' }
+    $DocRecord.Contents = @( @'
+
+- https://docs.docker.com/engine/reference/builder/
 
 
+tips:
+- [using docker build cache](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/#leverage-build-cache)
+- on windows it *can* make sense to [set escape to backtick, rational here](https://docs.docker.com/engine/reference/builder/#escape)
+
+
+'@ )
+    $DocRecord.Contents | Join-String -sep "`n" | Write-information -infa 'Continue'
+    return [pscustomobject]$docRecord
+}
+function Bintils.Docker.Logs {
+    'see:
+        https://docs.docker.com/config/daemon/logs/
+        https://docs.docker.com/config/containers/logging/
+        https://docs.docker.com/config/containers/logging/configure/
+            run -it log driver mode'
 }
 function New.CompletionResult {
     [Alias('New.CR')]
@@ -220,6 +245,115 @@ $updateTypeDataSplat = @{
 }
 
 Update-TypeData @updateTypeDataSplat
+
+function Bintils.Docker.SBom {
+    <#
+    .SYNOPSIS
+        (experimental plugin) View the packaged-based Software Bill Of Materials (SBOM) for an image.
+    .NOTES
+    Usage:  docker sbom [OPTIONS] COMMAND
+
+    View the packaged-based Software Bill Of Materials (SBOM) for an image.
+
+    EXPERIMENTAL: The flags and outputs of this command may change. Leave feedback on https://github.com/docker/sbom-cli-plugin.
+
+    Examples:
+
+    docker sbom alpine:latest                                          a summary of discovered packages
+    docker sbom alpine:latest --format syft-json                       show all possible cataloging details
+    docker sbom alpine:latest --output sbom.txt                        write report output to a file
+    docker sbom alpine:latest --exclude /lib  --exclude '**/*.db'      ignore one or more paths/globs in the image
+
+
+    Options:
+    -D, --debug                 show debug logging
+        --exclude stringArray   exclude paths from being scanned using a
+                                glob expression
+        --format string         report output format, options=[syft-json
+                                cyclonedx-xml cyclonedx-json github-0-json
+                                spdx-tag-value spdx-json table text]
+                                (default "table")
+        --layers string         [experimental] selection of layers to
+                                catalog, options=[squashed all] (default
+                                "squashed")
+    -o, --output string         file to write the default report output to
+                                (default is STDOUT)
+        --platform string       an optional platform specifier for
+                                container image sources (e.g.
+                                'linux/arm64', 'linux/arm64/v8', 'arm64',
+                                'linux')
+        --quiet                 suppress all non-report output
+    -v, --version               version for sbom
+
+    Commands:
+    version     Show Docker sbom version information
+    .LINK
+        https://github.com/docker/sbom-cli-plugin
+    #>
+    [CmdletBinding()]
+    param(
+        [ArgumentCompletions(
+            'alpine:latest')]
+        [string]$Target,
+
+        # which json/xml variant to use, or txt tables? := 'cyclonedx-json', 'cyclonedx-xml', 'github-0-json', 'spdx-json', 'spdx-tag-value', 'syft-json', 'table', 'text'
+        [Parameter()]
+            [Alias('Format','ExportAs')]
+            [ArgumentCompletions(
+                'syft-json', 'cyclonedx-xml', 'cyclonedx-json', 'github-0-json',
+                'spdx-tag-value', 'spdx-json', 'table', 'text'
+            )]
+            [string]$OutputFormat = 'table',
+
+
+        #  [experimental] selection of layers to catalog, options=[squashed all] (default "squashed")
+        [Parameter()]
+            [ArgumentCompletions('squashed', 'all')]
+            [string]$LayersExperimental,
+
+        [string]$Path,
+
+        # an optional platform specifier for container image sources (e.g. 'linux/arm64', 'linux/arm64/v8', 'arm64', 'linux')
+        [Parameter()]
+        [string]$Platform,
+
+        [Alias('Silent')][switch]$Quiet,
+        [switch]$Version,
+
+        [Alias('Log', 'WithLogging', 'WithVerbose')]
+        [switch]$DebugLog,
+
+        #  ex: --exclude /lib  --exclude '**/*.db'
+        [ArgumentCompletions(
+            '/lib', '**/*.db'
+        )]
+        [string[]]$Excludes
+
+    )
+    [List[Object]]$BinArgs = @(
+        'sbom'
+        $Target
+        if( $DebugLog ) { '--debug' }
+        if($OutputFormat) {
+            '--format'
+            $OutputFormat
+        }
+        if($Path) {
+            '--output'
+            $Path
+        }
+        if($PlatForm) { '--platform' ; $Platform }
+        if( $Quiet ) { '--quiet' }
+        if( $Version ) { '--version' }
+        foreach($Glob in $Excludes) {
+            '--exclude'
+            $Glob
+        }
+    )
+    $BinArgs |Join-String -sep ' ' -op 'invoking docker Bom => ' | Write-Verbose -verb
+    # todo: should be using build template and auto log native commands
+    & docker @binArgs
+}
 
 function Bintils.Docker.Parse.Images {
     <#
@@ -511,7 +645,7 @@ function Bintils.Invoke.WslWithCompletions {
     'invoking wsl' | write-host -back 'magenta'
 }
 
-$scriptBlock = {
+$nativeDockerScriptBlock = {
     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
     param($wordToComplete, $commandAst, $cursorPosition)
     [List[CompletionResult]]$items = @( __module.Docker.buildCompletions )
@@ -536,7 +670,7 @@ $scriptBlock = {
     return $selected
 }
 __module.Docker.OnInit
-Register-ArgumentCompleter -CommandName 'docker' -Native -ScriptBlock $ScriptBlock -Verbose
+Register-ArgumentCompleter -CommandName 'docker' -Native -ScriptBlock $nativeDockerScriptBlock -Verbose
 
 
 # Bintils.Debug.Docker.TestCompleter
