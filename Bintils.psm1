@@ -5,8 +5,10 @@ $importModuleSplat = @{
     Force = $true
 }
 
+Import-Module @importModuleSplat (Join-path $PSScriptRoot './bintils.common.psm1')
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.wsl.psm1')
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.docker.psm1')
+Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.lucidlink.psm1')
 
 . (gi 'H:\data\2023\pwsh\PsModules\bintils\references\rebuild-references.ps1')
 'currently rebuilds on invoke, should cache it. 👷‍♂️ although gh is fast-ish'

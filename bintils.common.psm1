@@ -1,0 +1,288 @@
+using namespace System.Collections.Generic
+using namespace System.Management.Automation.Language
+using namespace System.Management.Automation
+
+[List[Object]]$script:BC_LastBinArgs = @()
+[hashtable]$script:BC_AppConfig = [ordered]@{
+    FormatStr = @{
+        YearMonthDay_Filename = "yyyy-MM-dd"
+        DateTime_Iso8607 = "yyyy'-'MM'-'dd HH':'mm':'ss'Z'"
+    }
+}
+
+function Bintils.Common.New.CompletionResult {
+    [Alias(
+        'Bintils.CompletionResult',
+        'Bintils.New.CR'
+    )]
+    param(
+        # original base text
+        [Alias('Item', 'Text')]
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateNotNullOrWhiteSpace()]
+        [string]$ListItemText,
+
+        # actual value used in replacement, if not the same as ListItem
+        [AllowEmptyString()]
+        [AllowNull()]
+        [Alias('Replacement', 'Replace')]
+        [Parameter()]
+        [string]$CompletionText,
+
+        # Is there a better default?
+        [Parameter()]
+        [CompletionResultType]
+        $ResultType  = ([CompletionResultType]::ParameterValue),
+
+        # multi-line text displayed when using listcompletion
+        [Parameter()]
+        [Alias('Description', 'Help', 'RenderText')]
+        [string[]]$Tooltip
+    )
+    [System.ArgumentException]::ThrowIfNullOrWhiteSpace( $ListItemText , 'ListItemText' )
+
+    $Tooltip =  $Tooltip -join "`n"
+    if( [string]::IsNullOrEmpty( $Tooltip )) {
+        $Tooltip = '[⋯]'
+    }
+    if( [string]::IsNullOrEmpty( $CompletionText )) {
+        $CompletionText = $ListItemText
+    }
+    [CompletionResult]::new(
+        <# completionText: #> $completionText,
+        <# listItemText  : #> $listItemText,
+        <# resultType    : #> $resultType,
+        <# toolTip       : #> $toolTip)
+}
+
+
+function Bintils.Common.PreviewArgs {
+    <#
+    .SYNOPSIS
+        write dim previews of the args
+    #>
+    param(
+        [Alias(
+            'Args', 'List', 'Items', 'Obj' )]
+        [Parameter(Mandatory, ValueFromPipeline)]
+        [object[]]$InputObject
+    )
+    begin {
+        [List[Object]]$Items = @()
+    }
+    process {
+        $Items.AddRange(@( $InputObject ))
+     }
+     end {
+        $Items
+            | Join-String -sep ' ' -op 'bin args => @( ' -os ' )'
+            | Bintils.Common.Write-DimText
+     }
+}
+
+function Bintils.Common.Format.CommandAst {
+    param(
+        [Alias('InputObject', 'In', 'Obj', 'Cmd')]
+        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [CommandAst]$CommandAst # -is Management.Automation.Language
+        # [hashtable]$Options = @{}
+
+    )
+    begin {
+        $Options = @{
+            PadLeft = 10
+            Template = @'
+    {2} | {0} [ {1} ]
+'@
+        }
+    }
+    process {
+        $CommandAst.CommandElements | %{
+            $_ | Join-String {
+                $Options.Template -f @(
+                    $_.StringConstantType;
+                    $_.StaticType
+                    $_.Value.ToString().PadLeft( $Options.PadLeft, ' ')
+                ) }
+            }
+    }
+
+}
+
+function Bintils.Common.Format.TrimOuterSlashes {
+    <#
+    .SYNOPSIS
+        reason: Join-path can't be used on 's3' filepaths
+    .EXAMPLE
+        Pwsh> '/2023', '/foo/' | Bv.Format.TrimOuterSlashes
+
+            2023
+            foo
+    #>
+    [Alias('Bintils.Common.TrimOuterSlashes')]
+    [OutputType('String')]
+    param(
+        [switch]$StripBackslash,
+        [switch]$StripForwardslash
+    )
+    process {
+        [string]$Accum = $_
+
+        [bool]$useDefaultParams =
+            -not $PSBoundParameters.ContainsKey('StripBackslash') -and -not $PSBoundParameters.ContainsKey('StripForwardslash')
+
+        if( $UseDefaultParams ) {
+            write-verbose 'fallback to stripping both types when not specified'
+            $StripBackslash = $true
+            $StripForwardslash = $true
+        }
+
+        if( $StripBackslash ) {
+            $Char = '\'
+            $Accum = $Accum -replace ( '^' + [regex]::Escape( $Char ) ), ''
+            $Accum = $Accum -replace ( [regex]::Escape( $Char ) + '$' ), ''
+        }
+        if( $StripForwardslash ) {
+            $Char = '/'
+            $Accum = $Accum -replace ( '^' + [regex]::Escape( $Char ) ), ''
+            $Accum = $Accum -replace ( [regex]::Escape( $Char ) + '$' ), ''
+        }
+        return $Accum
+    }
+}
+
+function Bintils.Common.Write-DimText {
+    <#
+    .SYNOPSIS
+        # sugar for dim gray text,
+    .EXAMPLE
+        # pipes to 'less', nothing to console on close
+        get-date | Dotils.Write-DimText | less
+
+        # nothing pipes to 'less', text to console
+        get-date | Dotils.Write-DimText -PSHost | less
+    .EXAMPLE
+        > gci -Name | Dotils.Write-DimText |  Join.UL
+        > 'a'..'e' | Dotils.Write-DimText  |  Join.UL
+    #>
+    [OutputType('String')]
+    [Alias('Bintils.DimText')]
+    param(
+        # write host explicitly
+        [switch]$PSHost
+    )
+    $Ratio60 = 256 * .6 -as 'int'
+    $Ratio20 = 256 * .2 -as 'int'
+
+    $Fg = @{
+        Gray60 = $PSStyle.Foreground.FromRgb( $Ratio60, $Ratio60, $Ratio60 )
+        Gray20 = $PSStyle.Foreground.FromRgb( $Ratio20, $Ratio20, $Ratio20 )
+    }
+    $Bg = @{
+        Gray60 = $PSStyle.Background.FromRgb( $Ratio60, $Ratio60, $Ratio60 )
+        Gray20 = $PSStyle.Background.FromRgb( $Ratio20, $Ratio20, $Ratio20 )
+    }
+
+    $ColorDefault = @{
+        ForegroundColor = 'gray60'
+        BackgroundColor = 'gray20'
+    }
+    [string]$render =
+        $Input
+            | Join-String -op $(
+                $Fg.Gray60,
+                $Bg.Gray20 -join '') -os $( $PSStyle.Reset )
+
+    return $render | Write-Information -infa 'Continue'
+
+
+    # if($PSHost) {
+
+    #         # | Pansies\write-host @colorDefault
+    # }
+
+    # return $Input
+    #     | New-Text @colorDefault
+    #     | % ToString
+}
+function Bintils.Common.InvokeBin {
+    <#
+    .SYNOPSIS
+        Actually calls the native command, and waits fora a confirm prompt. Args may come from Bintils.Common.BuildBinArgs
+    #>
+    [Alias('Bintils.Common.Invoke')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
+    param(
+        [object[]]$BinArgs,
+
+        [ArgumentCompletions('aws', 'rclone')]
+        [Alias('NativeCommandName')]
+        [string]$CommandName = 'aws'
+    )
+    'Invoke: ' | write-verbose -Verbose
+    # "`n`n"
+    $binAws = Get-Command -CommandType Application -Name $CommandName -TotalCount 1 -ea 'stop'
+    # "`n`n"
+    $BinArgs | Bintils.Common.PreviewArgs
+    # "`n`n"
+    if ($PSCmdlet.ShouldProcess(
+        "$( $BinArgs -join ' '  )",
+        "InvokeBin: $( $CommandName )")
+    ) {
+        '   Calling "{0}"' -f @( $CommandName )
+            | write-host -fore 'green'
+
+        '   Calling "{0}"' -f @( $CommandName )
+        # '::invoke: => Confirmed'
+            | Bintils.Common.Write-DimText | Write-Information -infa 'continue'
+
+        & $BinAws @BinArgs
+    } else {
+        # '::invoke: => Skip' | Bintils.Common.Write-DimText | Write-Information -infa 'continue'
+        '   Skipped calling "{0}"' -f @( $CommandName ) | write-host -back 'darkred'
+    }
+    $BinArgs
+        | Bintils.Common.PreviewArgs
+        # | write-host -fore 'Green'
+}
+
+function Bintils.Common.NewFolderName.FromDate {
+    <#
+    .SYNOPSIS
+        folder name using the date '2031-01-04'
+    .EXAMPLE
+        Pwsh> Bintils.Common.NewFolderName.FromDate
+            2023-11-15
+
+        Pwsh> Bintils.Common.NewFolderName.FromDate -InputDateTime (get-date).AddDays(-30)
+            2023-11-16
+    #>
+    [OutputType('String')]
+    param(
+        # Datetime if not specified
+        [Parameter()]
+        [Alias('Datetime', 'From', 'FromDt', 'Dt')]
+        $InputDateTime = [Datetime]::Now
+    )
+
+    return $InputDateTime.ToString( $BC_AppConfig.FormatStr.YearMonthDay_Filename )
+}
+
+function Bintils.Common.Config.Get {
+    'or edit $script:BC_AppConfig' | write-host -back 'blue'
+    return $script:BC_AppConfig
+}
+
+Export-ModuleMember -Function @(
+    'Bintils.*'
+    'Bin.Common.*'
+) -Alias @(
+    'Bintils.*'
+    'Bin.Common.*'
+) -Variable @(
+    'BC_*'
+    'BC_LastBinArgs',
+    'Bintil*'
+    'BC_AppConfig'
+)
