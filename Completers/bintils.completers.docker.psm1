@@ -41,11 +41,45 @@ tips:
     return [pscustomobject]$docRecord
 }
 function Bintils.Docker.Logs {
+    param(
+        # --changed-within 20minutes
+        [ArgumentCompletions(
+            '10minutes', '5minutes',
+            '90seconds',
+            '2days',
+            '2hours',
+            '90minutes',
+            '20minutes'
+        )]
+        [string]$SinceTime
+    )
+    @'
     'see:
         https://docs.docker.com/config/daemon/logs/
         https://docs.docker.com/config/containers/logging/
         https://docs.docker.com/config/containers/logging/configure/
             run -it log driver mode'
+
+try
+    > fd --search-path (gi (Join-Path $Env:LocalAppData 'Docker'))
+'@
+    | write-host
+
+    Join-Path $Env:LocalAppData 'Docker'
+    [List[Object]]$binArgs = @(
+        '--search-path'
+        (gi (Join-Path $Env:LocalAppData 'Docker') -ea 'stop')
+        '-tf'
+        if($SinceTime) {
+            '--changed-within'
+            $SinceTime
+        }
+    )
+    # fd --search-path (gi (Join-Path $Env:LocalAppData 'Docker')) -tf --changed-within 20minutes | gi | % Extension | group -NoElement | % Name | Join-string -sep ', ' -op 'extensions found: ' | write-host -fg 'darkyellow'
+
+
+    $binArgs | Join-String -sep ' ' -op 'fd args => ' | write-verbose -verb
+    & fd @binArgs
 }
 function New.CompletionResult {
     [Alias('New.CR')]

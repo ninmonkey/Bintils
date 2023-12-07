@@ -2,7 +2,7 @@
 .notes
 {
   "GhCliVersion": "gh version 2.39.2 (2023-11-27), https://github.com/cli/cli/releases/tag/v2.39.2",
-  "ExportDate": "2023-12-01 14:56:36Z",
+  "ExportDate": "2023-12-07 06:49:31Z",
   "ExportCommand": "gh completion -s powershell"
 }
 #>
