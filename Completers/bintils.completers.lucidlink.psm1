@@ -219,8 +219,23 @@ function Bintils.LucidLink.Parse.Logs {
     $BinArgs | Bintils.Common.PreviewArgs
     & lucid @BinArgs
 }
-function New.CompletionResult {
-    [Alias('New.CR')]
+class BintilsCompletionResult {
+    [CompletionResult]$Completion
+    [string]$ParentName = [string]::empty
+
+    [CompletionResult] ToCompletion() {
+        # if you need a raw completion
+        return $This.Completion
+    }
+}
+
+function New.Bintil.CompletionResult {
+    [Alias(
+        'New.Bintil.CR',
+        'New.BCR',
+        'Bintils.New-BintilCompletion'
+    )]
+    [OutputType([BintilsCompletionResult])]
     param(
         # original base text
         [Alias('Item', 'Text')]
@@ -245,10 +260,7 @@ function New.CompletionResult {
         [Parameter()]
         [Alias('Description', 'Help', 'RenderText')]
         [string[]]$Tooltip,
-
-        [switch]$AsBaseType,
-
-        [string]$ParentName
+        [string]$ParentName = ''
     )
     [System.ArgumentException]::ThrowIfNullOrWhiteSpace( $ListItemText , 'ListItemText' )
 
@@ -259,21 +271,26 @@ function New.CompletionResult {
     if( [string]::IsNullOrEmpty( $CompletionText )) {
         $CompletionText = $ListItemText
     }
-    $ce = [CompletionResult]::new(
+    $cr = [CompletionResult]::new(
         <# completionText: #> $completionText,
         <# listItemText  : #> $listItemText,
         <# resultType    : #> $resultType,
         <# toolTip       : #> $toolTip)
 
-    if( $AsBaseType ) { return $ce }
-
-    $addMemberSplat = @{
-        NotePropertyName = 'ParentName'
-        NotePropertyValue = $PaarentName
-        PassThru = $true
-        Force = $true
+    return [BintilsCompletionResult]@{
+        Completion = $cr
+        ParentName = $ParentName ?? ''
     }
-    $ce | Add-Member @addMemberSplat
+
+    # if( $AsBaseType ) { return $cr }
+
+    # $addMemberSplat = @{
+    #     NotePropertyName = 'ParentName'
+    #     NotePropertyValue = $PaarentName
+    #     PassThru = $true
+    #     Force = $true
+    # }
+    # $cr | Add-Member @addMemberSplat
 }
 
 function __module.LucidLink.OnInit {
@@ -302,20 +319,22 @@ function __module.LucidLink.buildCompletions {
     #>
     param()
     @(
-        New.CompletionResult -Text 'effective' -Replacement '--effective' -ResultType ParameterValue -Tooltip 'lucid log config --explain' -ParentName 'config'
-        New.CompletionResult -Text 'explain' -Replacement '--explain' -ResultType ParameterValue -Tooltip 'lucid log config --effective' -ParentName 'config'
+        New.Bintil.CompletionResult -Text 'effective' -Replacement '--effective' -ResultType ParameterValue -Tooltip 'lucid log config --explain' -ParentName 'config'
+        New.Bintil.CompletionResult -Text 'explain' -Replacement '--explain' -ResultType ParameterValue -Tooltip 'lucid log config --effective' -ParentName 'config'
+        New.Bintil.CompletionResult -Text 'help' -Replacement 'help' -ResultType ParameterValue -Tooltip 'help on topics' -ParentName 'lucid'
+    if($false) {
+        New.Bintil.CompletionResult -Text 'Support' -Replacement 'support' -ResultType ParameterValue -Tooltip ''
+        New.Bintil.CompletionResult -Text 'mount' -Replacement 'mount' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778975434765'
+        New.Bintil.CompletionResult -Text 'unmount' -Replacement 'unmount' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778975434765'
+        New.Bintil.CompletionResult -Text 'cache' -Replacement 'cache' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5467779996173'
 
-        New.CompletionResult -Text 'Support' -Replacement 'support' -ResultType ParameterValue -Tooltip ''
-        New.CompletionResult -Text 'mount' -Replacement 'mount' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778975434765'
-        New.CompletionResult -Text 'unmount' -Replacement 'unmount' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778975434765'
-        New.CompletionResult -Text 'cache' -Replacement 'cache' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5467779996173'
+        New.Bintil.CompletionResult -Text 'Help.Status' -Replacement 'help status' -ResultType ParameterValue -Tooltip ''
+        New.Bintil.CompletionResult -Text 'Help' -Replacement '' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778955042445-Command-line-feature-functions'
+        New.Bintil.CompletionResult -Text 'Example.Performance.Explain' -Replacement "perf --explain" -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5647793046797-Filespace-Performance-Monitoring'
+    }
+#         New.Bintil.CompletionResult -Text 'Example.Build.Stage' -Replacement "LucidLink build --target build --tag hello ." -ResultType ParameterValue -Tooltip ''
 
-        New.CompletionResult -Text 'Help.Status' -Replacement 'help status' -ResultType ParameterValue -Tooltip ''
-        New.CompletionResult -Text 'Help' -Replacement '' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778955042445-Command-line-feature-functions'
-        New.CompletionResult -Text 'Example.Performance.Explain' -Replacement "perf --explain" -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5647793046797-Filespace-Performance-Monitoring'
-#         New.CompletionResult -Text 'Example.Build.Stage' -Replacement "LucidLink build --target build --tag hello ." -ResultType ParameterValue -Tooltip ''
-
-#         New.CompletionResult -Text 'Example.Build' -Replacement "build --tag welcome-to-LucidLink ." -ResultType ParameterValue -Tooltip @'
+#         New.Bintil.CompletionResult -Text 'Example.Build' -Replacement "build --tag welcome-to-LucidLink ." -ResultType ParameterValue -Tooltip @'
 # see:
 
 # - https://docs.LucidLink.com/guides/walkthroughs/run-a-container/
@@ -326,7 +345,7 @@ function __module.LucidLink.buildCompletions {
 
 
 # '@
-#         New.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip @'
+#         New.Bintil.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip @'
 # see:
 
 # - https://docs.LucidLink.com/get-started/overview/#example-LucidLink-run-command
@@ -527,7 +546,8 @@ function Bintils.Invoke.LucidLinkWithCompletions {
 $scriptBlockNativeCompleter = {
     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
     param($wordToComplete, $commandAst, $cursorPosition)
-    [List[CompletionResult]]$items = @( __module.LucidLink.buildCompletions )
+    [List[BintilsCompletionResult]]$items = @( __module.LucidLink.buildCompletions )
+
 
 
     $FilterProp =
@@ -535,32 +555,50 @@ $scriptBlockNativeCompleter = {
     [string]$parentName? = $commandAst.CommandElements
         | Select -Last 1 | % value
 
+    $lastName = $commandAst.ToString() -split '\s+' | Select -last 1
+    $leftWord = $commandAst.CommandElements | Select -last 1
 
 
-    [List[CompletionResult]]$selected =
+
+    [List[Object]]$selected = @(
         $items | ?{
-            $matchesAny = (
-                $_.$FilterProp -match $WordToComplete -or
-                $_.$FilterProp -match [regex]::escape( $WordToComplete ) -or
-                # // or statically
-                $_.ListItemText -match $wordToComplete -or
-                $_.CompletionText -match $wordToComplete -or
-                $_.ListItemText -match [regex]::escape( $wordToComplete ) -or
-                $_.CompletionText -match [regex]::escape( $wordToComplete ) )
-
-            return $MatchesAny
+            [bool]$toKeep = (
+                ( $_.ParentName -match [regex]::escape( $leftWord ) ) -or
+                    ( [string]::IsNullOrWhiteSpace( $_.ParentName ) ) -or
+                    ( $_.ParentName -eq 'lucid' ) -or
+                    [string]::IsNullOrWhiteSpace( $leftWord ) -or
+                    $false
+            )
+            return $toKeep
         }
+    )
+        # | ?{
+        #     $matchesAny = (
+        #         $_.$FilterProp -match $WordToComplete -or
+        #         $_.$FilterProp -match [regex]::escape( $WordToComplete ) -or
+        #         # // or statically
+        #         $_.ListItemText -match $wordToComplete -or
+        #         $_.CompletionText -match $wordToComplete -or
+        #         $_.ListItemText -match [regex]::escape( $wordToComplete ) -or
+        #         $_.CompletionText -match [regex]::escape( $wordToComplete ) )
+
+        #     return $MatchesAny
+        # }
+
 
     if('based on heirarchy') {
         $crumbs = $commandAst.CommandElements.Value
     }
 
     if('VerboseLoggingState') {
+        $PSStyle.OutputRendering = 'PlainText'
+
         @(
             "`n ===== Lucid native completion result ==== "
             get-date
             $PSCommandPath |Join-String -op 'source: '
             [ordered]@{
+                'Left' = $LeftWord
                 'Command' = $PSCommandPath
                 'Word' = $WordToComplete
                 'Cursor' = $cursorPosition
@@ -576,11 +614,28 @@ $scriptBlockNativeCompleter = {
             "`n"
         )
         | Add-Content -Path 'temp:\completers.log'
+        $PSStyle.OutputRendering = 'Ansi'
 
     }
+    $final_CE = [List[CompletionResult]]@( $selected.ToCompletion() ) # should declare an auto coercable  class
+    if($final_CE.Count -eq 0){
+        [string]$render_tooltip = @(
+            'Special 0 matches found, tooltip'
+            Join-String -f 'Word: {0}' -in $wordToComplete
+            $commandAst | JOin-String -sep ', ' { $_.ToString() }
+            Join-String -op 'cusor pos' -In $cursorPosition
+        ) | Join-String -sep "`n" -op "debug tooltip`n"
+        $final_CE.add(
+            [CompletionResult]::new(
+                <# completionText: #> '😢',
+                <# listItemText: #> '😢',
+                <# resultType: #> [CompletionResultType]::Text,
+                <# toolTip: #> $render_tooltip)
+        )
+    }
 
+    return $final_CE
 
-    return $selected
 }
 __module.LucidLink.OnInit
 Register-ArgumentCompleter -CommandName 'Lucid' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
