@@ -82,11 +82,45 @@ function Bintils.Common.PreviewArgs {
 }
 
 function Bintils.Common.Format.CommandAst {
+    <#
+    .synopsis
+    .notes
+        $commandAst.CommandElements.GetType()
+
+        Namespace: System.Collections.ObjectModel
+
+        Pwsh 7.4.0> [23] 🐒
+        $commandAst | % gettype |Ft -AutoSize
+
+            Namespace: System.Management.Automation.L
+
+            Access Modifiers Name
+            ------ --------- ----
+            public class     CommandAst : CommandBaseAst
+
+        Pwsh 7.4.0> [23] 🐒
+        $commandAst.CommandElements | % gettype | ft  -AutoSize
+
+            Namespace: System.Management.Automation.Language
+
+            Access Modifiers Name
+            ------ --------- ----
+            public class     StringConstantExpressionAst : ConstantExpressionAst
+    #>
+    [CmdletBinding(DefaultParameterSetName = 'AsCommandAst')]
     param(
         [Alias('InputObject', 'In', 'Obj', 'Cmd')]
-        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
-        [CommandAst]$CommandAst # -is Management.Automation.Language
+        [Parameter(
+            ParameterSetName = 'AsCommandAst',
+            Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [CommandAst]$CommandAst, # -is Management.Automation.Language
+        [Parameter(
+            ParameterSetName = 'AsCommandElements',
+            Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [object[]]$CommandElements # -is Management.Automation.Language
         # [hashtable]$Options = @{}
+
+        # [Parameter(ValueFromTypeName)]
 
     )
     begin {
@@ -98,6 +132,11 @@ function Bintils.Common.Format.CommandAst {
         }
     }
     process {
+        <#
+        'future '
+
+
+        #>
         $CommandAst.CommandElements | %{
             $_ | Join-String {
                 $Options.Template -f @(
@@ -110,6 +149,47 @@ function Bintils.Common.Format.CommandAst {
 
 }
 
+
+function Bintils.Common.Format.BaseTypeChain {
+    <#
+    .SYNOPSIS
+        visualize inher
+    .NOTES
+        future:
+            - allow piping or parameter
+    .EXAMPLE
+        Fmt.BaseType ( Get-Item . ) |  Join-String
+        Fmt.BaseType ( $commandAst.CommandElements[2] ) |  Join-String
+    .EXAMPLE
+        Fmt.BaseType ( $commandAst.CommandElements[2] ) |  Join.UL
+            - ConstantExpressionAst
+            - ExpressionAst
+            - CommandElementAst
+            - Ast
+            - Object
+    #>
+    [Alias('Bintils.Format.TypeChain')]
+    param( [Object]$InputObject )
+
+   $curType = $InputObject.GetType()
+   $nextBase = ( $curType )?.BaseType
+   $found = @(
+        while( -not ( -not $nextBase) ) {
+            $nextBase.Name
+            $nextBase = $nextBase.BaseType
+        }
+    )
+    $NamesToDim = @(  # stuff that I don't want to toally remove
+        'Ast'
+    )
+    $NamesToIgnore = @(
+        'Object'
+    )
+
+    $found.Where({ $_ -notin @($NamesToIgnore) })
+    return $Found
+
+}
 function Bintils.Common.Format.TrimOuterSlashes {
     <#
     .SYNOPSIS

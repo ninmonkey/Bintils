@@ -3,6 +3,8 @@ using namespace System.Collections.Generic
 using namespace System.Management
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
+using namespace System.Collections.ObjectModel
+# [Collections.ObjectModel.ReadOnlyCollection[CommandElementAst]]
 
 $script:__moduleConfig = @{
 
@@ -242,7 +244,11 @@ function New.CompletionResult {
         # multi-line text displayed when using listcompletion
         [Parameter()]
         [Alias('Description', 'Help', 'RenderText')]
-        [string[]]$Tooltip
+        [string[]]$Tooltip,
+
+        [switch]$AsBaseType,
+
+        [string]$ParentName
     )
     [System.ArgumentException]::ThrowIfNullOrWhiteSpace( $ListItemText , 'ListItemText' )
 
@@ -253,11 +259,21 @@ function New.CompletionResult {
     if( [string]::IsNullOrEmpty( $CompletionText )) {
         $CompletionText = $ListItemText
     }
-    [CompletionResult]::new(
+    $ce = [CompletionResult]::new(
         <# completionText: #> $completionText,
         <# listItemText  : #> $listItemText,
         <# resultType    : #> $resultType,
         <# toolTip       : #> $toolTip)
+
+    if( $AsBaseType ) { return $ce }
+
+    $addMemberSplat = @{
+        NotePropertyName = 'ParentName'
+        NotePropertyValue = $PaarentName
+        PassThru = $true
+        Force = $true
+    }
+    $ce | Add-Member @addMemberSplat
 }
 
 function __module.LucidLink.OnInit {
@@ -286,8 +302,9 @@ function __module.LucidLink.buildCompletions {
     #>
     param()
     @(
+        New.CompletionResult -Text 'effective' -Replacement '--effective' -ResultType ParameterValue -Tooltip 'lucid log config --explain' -ParentName 'config'
+        New.CompletionResult -Text 'explain' -Replacement '--explain' -ResultType ParameterValue -Tooltip 'lucid log config --effective' -ParentName 'config'
 
-        New.CompletionResult -Text 'version' -Replacement '' -ResultType ParameterValue -Tooltip ''
         New.CompletionResult -Text 'Support' -Replacement 'support' -ResultType ParameterValue -Tooltip ''
         New.CompletionResult -Text 'mount' -Replacement 'mount' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778975434765'
         New.CompletionResult -Text 'unmount' -Replacement 'unmount' -ResultType ParameterValue -Tooltip 'https://support.lucidlink.com/hc/en-us/articles/5778975434765'
@@ -512,8 +529,13 @@ $scriptBlockNativeCompleter = {
     param($wordToComplete, $commandAst, $cursorPosition)
     [List[CompletionResult]]$items = @( __module.LucidLink.buildCompletions )
 
+
     $FilterProp =
         'ListItemText' # 'CompletionText'
+    [string]$parentName? = $commandAst.CommandElements
+        | Select -Last 1 | % value
+
+
 
     [List[CompletionResult]]$selected =
         $items | ?{
@@ -528,6 +550,35 @@ $scriptBlockNativeCompleter = {
 
             return $MatchesAny
         }
+
+    if('based on heirarchy') {
+        $crumbs = $commandAst.CommandElements.Value
+    }
+
+    if('VerboseLoggingState') {
+        @(
+            "`n ===== Lucid native completion result ==== "
+            get-date
+            $PSCommandPath |Join-String -op 'source: '
+            [ordered]@{
+                'Command' = $PSCommandPath
+                'Word' = $WordToComplete
+                'Cursor' = $cursorPosition
+                'last' = $commandAst.CommandElements[-1]
+                'last2' = $commandAst.CommandElements[-2]
+
+            } | Ft -auto | out-String
+            $commandAst | Bintils.Common.Format.CommandAst
+            "`n"
+            "`n"
+            $commandAst|ft -AutoSize | Out-string
+            $commandAst|fl | Out-string
+            "`n"
+        )
+        | Add-Content -Path 'temp:\completers.log'
+
+    }
+
 
     return $selected
 }
