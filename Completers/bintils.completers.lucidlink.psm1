@@ -154,6 +154,23 @@ function Bintils.LucidLink.GetAppLocations {
     }
     return [pscustomobject]$Meta
 }
+function Bintils.LucidLink.Parse.Info {
+    [Alias(
+        'Lc.Info'
+    )]
+    [OutputType('haSHTABLE')]
+    param()
+    [List[Object]]$BinArgs = @(
+        'info'
+    )
+    $BinArgs | Bintils.Common.PreviewArgs
+    $meta = [ordered]@{}
+    (& lucid @BinArgs) -split '\r?\n'| %{
+        $Key, $Value = $_ -split ':\s+', 2
+        $meta[ $key ] = $value
+    }
+    return $meta
+}
 function Bintils.LucidLink.Parse.Logs {
     [Alias(
         'Lc.Logs.Parse',
