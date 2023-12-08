@@ -9,7 +9,7 @@ using namespace System.Management.Automation
         DateTime_Iso8607 = "yyyy'-'MM'-'dd HH':'mm':'ss'Z'"
     }
 }
-
+[hashtable]$script:___UserHasCommand = @{}
 function Bintils.Common.New.CompletionResult {
     [Alias(
         'Bintils.CompletionResult',
@@ -79,6 +79,91 @@ function Bintils.Common.PreviewArgs {
             | Join-String -sep ' ' -op 'bin args => @( ' -os ' )'
             | Bintils.Common.Write-DimText
      }
+}
+
+function Bintils.Common.Test-UserHasNativeCommand {
+    <#
+    .SYNOPSIS
+        Tests if a native command is found, then caching results. const-time if it is cached
+    .EXAMPLE
+        > Bintils.Common.Test-UserHasNativeCommand 'bat'
+        > Bintils.Common.Test-UserHasNativeCommand 'fd'
+
+    .EXAMPLE
+        > Bintils.Common.Test-UserHasNativeCommand -All
+    .EXAMPLE
+        > Bintils.Missing-NativeCmd rg
+        > Bintils.Missing-NativeCmd rg_missing
+        > Bintils.Has-NativeCmd rg
+        > Bintils.Has-NativeCmd rg_missing
+
+        # True,  False, True,  False
+
+    .NOTES
+        future: compare whether SessionStateInvokingCommand is faster
+
+    #>
+    [Alias(
+        'Bintils.Test-HasNativeCmd',
+        'Bintils.IsMissing-NativeCmd',
+        'Bintils.Missing-NativeCmd',
+        'Bintils.Has-NativeCmd'
+    )]
+    [CmdletBinding(DefaultParameterSetName='FindOne')]
+    param(
+        [Parameter(Mandatory,parameterSetName='FindOne', Position=0)]
+        [string]$CommandName,
+
+        [Alias('All')]
+        [Parameter(ParameterSetName='ListAll')]
+        [switch]$PassThru,
+
+        # inverts the boolean, for UX
+        # or use the alias to be enabled by default
+        [Alias('IsMissing', 'WhenMissing')]
+        [Parameter(ParameterSetName='FindOne')]
+        [switch]$TrueWhenMissing
+    )
+    $state = $script:___UserHasCommand
+
+    <#
+    .notes
+        when calling
+        > Bintils.Missing-NativeCmd -CommandName bat
+
+        then
+        > $PSCmdlet.MyInvocation.MyCommand.Name # -is 'Bintils.Common.Test-UserHasNativeCommand'
+
+            Bintils.Common.Test-UserHasNativeCommand
+
+        then
+        > $PSCmdlet.MyInvocation.InvocationName # -is 'Bintils.Missing-NativeCmd'
+
+    #>
+    $commandAliasUsed = $PSCmdlet.MyInvocation.InvocationName
+
+    if( $commandAliasUsed -match '(Is)?Missing-') {
+        # $MyInvocation.MyCommand.Name | write-host -fg 'orange'
+        # $Pscmdlet.MyInvocation | write-host -fg 'blue'
+        write-debug 'cache-miss for Test-UserHasNativeCommand'
+        $TrueWhenMissing = $true
+    }
+
+    switch($PSCmdlet.ParameterSetName){
+        'ListAll' {
+            return $state
+        }
+        default {
+            if( -not $state.ContainsKey( $CommandName )) {
+                $state[ $CommandName ] =
+                    [bool](Gcm -Name $CommandName -CommandType Application -ea 'ignore').count -gt 0
+            }
+            $wasFound = $state[ $CommandName ]
+
+            if( $TrueWhenMissing ) { return -not $wasFound }
+            return $wasFound
+        }
+    }
 }
 
 function Bintils.Common.Format.CommandAst {
