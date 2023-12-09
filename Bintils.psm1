@@ -10,10 +10,15 @@ Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.docker.psm1')
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.lucidlink.psm1')
 
-. (gi 'H:\data\2023\pwsh\PsModules\bintils\references\rebuild-references.ps1')
-'currently rebuilds on invoke, should cache it. 👷‍♂️ although gh is fast-ish'
-    | write-host -fore 'magenta' -bg 'gray15'
-
-. (gi 'H:\data\2023\pwsh\PsModules\Bintils\references\gh\gh.ps1')
-
 # Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.docker.psm1')
+
+'wip: Bintils.psm1 currently rebuilds on invoke, I should cache it. 👷‍♂️ although gh invoke is fast'
+    | Write-Host -fg 'magenta' -bg 'gray15'
+
+. (gi -ea 'continue' (Join-path $PSScriptRoot 'references/rebuild-references.ps1'))
+    # todo: performance test compare whether (Test-path) else System.IO methods are faster than get-item
+    # mainly noticable when multiple tabs open at once, sometimes a file lock overlaps
+
+if( $dotSrc = gi -ea 'continue' (Join-path $PSScriptRoot 'references/gh\gh.ps1')) {
+    . $DotSrc
+}

@@ -10,6 +10,114 @@ using namespace System.Management.Automation
     }
 }
 [hashtable]$script:___UserHasCommand = @{}
+
+function Bintils.Common.Format.Whitespace {
+    <#
+    .notes
+        'flatten' or 'collapse' for this function flattens, sort of like html does
+
+        FlattenNewLine
+
+            in : a\n\n\nb\nc\nBintils.Common.Format.Whitespace
+            out: a\nb\nc\n
+
+        NormalizeLineEnding
+
+            in : \ra\r\nb\r\r
+            out: \na\nb\n\n
+    .LINK
+        https://learn.microsoft.com/en-us/dotnet/standard/base-types/character-classes-in-regular-expressions#WhitespaceCharacter
+    .link
+        https://learn.microsoft.com/en-us/dotnet/standard/base-types/character-classes-in-regular-expressions#SupportedUnicodeGeneralCategories
+    #>
+    [OutputType('System.String')]
+    [Alias('Bintils.Common.Format-CleanText')]
+    param(
+        [Alias('InputObject', 'In', 'InpObj', 'Obj', 'String', 'Lines')]
+        [Parameter(ValueFromPipeline)]
+        [AllowEmptyCollection()]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string[]]$Text,
+
+        [ArgumentCompletions(
+            '@{ StripAnsiColors = $false }',
+            '@{ StripAllAnsiEscapes = $false }',
+            '@{ NormalizeLineEnding = $false }',
+            '@{ FlattenSpace = $false }',
+            '@{ FlattenNewline = $false }',
+            '@{ FlattenOtherWhitespace = $false }',
+            '@{ FormatControlChars = $false }',
+            '@{ StripControlChars = $false }'
+        )]
+        [hashtable]$Options = @{}
+    )
+
+    begin {
+        $Config = @{
+            StripAnsiColors = $True
+            StripAllAnsiEscapes = $True
+            NormalizeLineEnding = $True
+            FlattenSpace = $true
+            FlattenNewline = $True
+            FlattenOtherWhitespace = $True
+            FormatControlChars = $True
+            StripControlChars = $true
+        }
+        $Config = nin.MergeHash -BaseHash $Config -OtherHash  ( $Options ?? @{} )
+    }
+    process {
+        foreach($curLine in $Text) {
+            [string]$Accum = $curLine
+
+            if($Config.StripAnsiColors) {
+                $Accum = $Accum -replace
+                    '\u001B.*?m',
+                    ''
+            }
+            if($Config.StripAllAnsiEscapes) {
+                $Accum = $Accum -replace
+                    '\u001B.*?\p{L}',
+                    ''
+            }
+
+            if($Config.NormalizeLineEnding) {
+                $Accum = $Accum -replace
+                '\r?\n',
+                "`n"
+            }
+            if($Config.FlattenSpace) {
+                $Accum = $Accum -replace
+                '[ ]+',
+                ' '
+           }
+            if($Config.FlattenNewline) {
+                $Accum = $Accum -replace
+                '(\r?\n)+',
+                "`n"
+            }
+            if($Config.FlattenOtherWhitespace) {
+                $Accum = $Accum -replace
+                '\s+',
+                '␠'
+            }
+            if($Config.StripControlChars) {
+                $Accum = $Accum -replace
+                '(\p{Cc})+',
+                "`u{2400}"
+            }
+
+            if($Config.FormatControlChars) {
+                # '\'
+                $Accum = $Accum | Format-ControlChar
+            }
+
+            $Accum
+            continue
+        }
+    }
+}
+
 function Bintils.Common.New.CompletionResult {
     [Alias(
         'Bintils.CompletionResult',
@@ -101,6 +209,7 @@ function Bintils.Common.Test-UserHasNativeCommand {
 
     .NOTES
         future: compare whether SessionStateInvokingCommand is faster
+            $ExecutionContext.InvokeCommand.GetCommand('pwsh', 'Application')
 
     #>
     [Alias(
@@ -122,7 +231,9 @@ function Bintils.Common.Test-UserHasNativeCommand {
         # or use the alias to be enabled by default
         [Alias('IsMissing', 'WhenMissing')]
         [Parameter(ParameterSetName='FindOne')]
-        [switch]$TrueWhenMissing
+        [switch]$TrueWhenMissing,
+
+        [switch]$SlowSearch
     )
     $state = $script:___UserHasCommand
 
@@ -155,8 +266,14 @@ function Bintils.Common.Test-UserHasNativeCommand {
         }
         default {
             if( -not $state.ContainsKey( $CommandName )) {
-                $state[ $CommandName ] =
-                    [bool](Gcm -Name $CommandName -CommandType Application -ea 'ignore').count -gt 0
+                if($SlowSearch) {
+                    $state[ $CommandName ] =
+                        [bool](Gcm -Name $CommandName -CommandType Application -ea 'ignore').count -gt 0
+                } else {
+                    $ExecutionContext.InvokeCommand.GetCommand(
+                        <# commandName: #> 'pwsh',
+                        <# type: #> 'Application' )
+                }
             }
             $wasFound = $state[ $CommandName ]
 

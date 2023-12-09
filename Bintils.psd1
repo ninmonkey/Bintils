@@ -9,16 +9,16 @@
 @{
 
 # Script module or binary module file associated with this manifest.
-RootModule = 'bintils.completers.docker.psm1'
+RootModule = 'Bintils.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.2'
+ModuleVersion = '0.0.4'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
 
 # ID used to uniquely identify this module
-GUID = '128fe0b2-2136-4372-8ff9-b9c377801031'
+GUID = '9740bcef-a5a0-445c-b750-ad3e6e7fb155'
 
 # Author of this module
 Author = 'Jake Bolton <jake.bolton.314@gmail.com>'
@@ -30,7 +30,7 @@ CompanyName = 'Jake Bolton'
 Copyright = '2023'
 
 # Description of the functionality provided by this module
-Description = '(minimal) completions for docker'
+Description = 'A collection of modular command line completer functions. a lot of the code can be isolated'
 
 # Minimum version of the PowerShell engine required by this module
 # PowerShellVersion = ''
@@ -70,31 +70,43 @@ Description = '(minimal) completions for docker'
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
-    'Docker.*'
-    'Wsl.*'
+    # export very little if importing this top-level module. maybe *.Common. Otherwise the user can
+    'Bintils.Common.*'
+    'Bintils.*'
 
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @(
-    'Docker.*'
-    'Wsl.*'
+    # export very little if importing this top-level module. maybe *.Common. Otherwise the user can
+    'Bintils.Common.*'
+    'Bintils.*'
+    # 'Docker.*'
+    # 'Wsl.*'
+    # 'Bintils.Common.*'
+    # 'Bintils.*'
 
+)
+# Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
+AliasesToExport = @(
+    # export very little if importing this top-level module. maybe *.Common. Otherwise the user can
+    'Bintils.Common.*'
+
+    #
+    'Bintils.*'
+    # 'Docker.*'
+    # 'Wsl.*'
+    # 'Dock'
+    # 'b.Docker'
 )
 
 # Variables to export from this module
 VariablesToExport = @(
-    'Docker.*'
-    'Wsl.*'
+    # 'Bintils.Common.*'
+    # 'Bintils*'
+    # 'Docker.*'
+    # 'Wsl.*'
 
-)
-
-# Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = @(
-    'Docker.*'
-    'Wsl.*'
-    'Dock'
-    'b.Docker'
 )
 
 # DSC resources to export from this module
@@ -113,7 +125,7 @@ PrivateData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
         Tags = @(
-            'Wsl', 'Docker', 'Linux', 'Completers', 'Completion', 'ninmonkey', 'Pwsh', 'Ps7'
+            'Wsl', 'Docker', 'Linux', 'Completers', 'Completion', 'ninmonkey', 'Pwsh', 'Ps7', 'ArgumentCompleter'
         )
 
         # A URL to the license for this module.
