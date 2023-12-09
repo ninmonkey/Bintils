@@ -11,6 +11,88 @@ using namespace System.Management.Automation
 }
 [hashtable]$script:___UserHasCommand = @{}
 
+
+function Bintils.Commmn.Format.String.Shorten {
+    <#
+    .SYNOPSIS
+        Get the longest substring, based on param MaxLength. will not error
+    .NOTES
+        Similar to [string]::substring( x, length )
+            but errors are coerced or ignored (silent for UX)
+
+        does not join strings, so you can pipe an array and each are seperately truncated
+    - future
+        - [ ] optionally use codepoint count for lengths
+        - [ ] optionally auto-join for cases where you're going to use a Join-String
+    see also:
+        - <Dotils/tests/Format-ShortString.tests.ps1>
+    #>
+    [Alias(
+        'Bintils.Common.Format-ShortenString',
+        'Bintils.Common.Str.Trunc',
+        'Bintils.ShortenString',
+        'Bintils.Str.Shorten',
+        'Bintils.Str.Trunc'
+    )]
+    [OutputType('System.String')]
+    param(
+        # does not join strings, so you can pipe an array and each are seperately truncated
+        [Alias('InputObject', 'In', 'InpObj', 'Obj', 'String', 'Lines')]
+        [Parameter(ValueFromPipeline)]
+        [AllowEmptyCollection()]
+        [AllowEmptyString()]
+        [AllowNull()]
+        [string[]]$Text,
+
+        #  '⋯', '…', 'ຯ', '᠁', '⋮', '⋰', '⋱', '︙'
+        [Alias('NoEllipsis')]
+        [switch]$WithoutEllipsisWhenTruncated,
+
+        # string length, measured as basic string length ( meaning it's not the number of codepoints / Runes )
+        [Alias('Len', 'Max', 'Width', 'Cols', 'Columns')]
+        [int]$MaxLength = 120,
+
+
+        # Should inline whitespace be merged before counting lenght?
+        [switch]$AutoFlattenNewlines,
+
+        # string to be used when the string is longer than the limit. this is not taken into account when testing length
+        [Alias('EllipsisString')]
+        [ArgumentCompletions(
+            '␀', '␠', '␊',
+            '⋯', '…', 'ຯ', '᠁', '⋮', '⋰', '⋱', '︙')]
+        [string]$ReplacementString = '⋱' # '…'
+    )
+    begin {
+        # $PSBoundParameters  | Json -Compress
+        #     | Write-debug # | write-host -fore 'salmon' -bg 'gray10'
+    }
+    process {
+        foreach($curLine in $Text) {
+            $actualStrLen = ( $curLine )?.Length ?? 0
+            if( $actualStrLen -le $MaxLength ) {
+                $CurLine
+                continue
+            }
+            if($actualStrLen -gt $MaxLength) {
+                [string]$render_short =
+                    $curLine.Substring(0, $MaxLength)
+
+                if(-not $WithoutEllipsisWhenTruncated) {
+                    $render_short += $ReplacementString
+                }
+                    #  + $ReplacementString
+
+                $render_short
+                continue
+            }
+            throw 'ShouldNeverReachException'
+        }
+
+    }
+    end {}
+}
+
 function Bintils.Common.Format.Whitespace {
     <#
     .notes
