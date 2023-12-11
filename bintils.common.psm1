@@ -61,7 +61,7 @@ function Bintils.Commmn.Format.String.Shorten {
         [ArgumentCompletions(
             '␀', '␠', '␊',
             '⋯', '…', 'ຯ', '᠁', '⋮', '⋰', '⋱', '︙')]
-        [string]$ReplacementString = '⋱' # '…'
+        [string]$ReplacementString = '…' # ⋱' # '…'
     )
     begin {
         # $PSBoundParameters  | Json -Compress
@@ -92,6 +92,7 @@ function Bintils.Commmn.Format.String.Shorten {
     }
     end {}
 }
+
 
 function Bintils.Common.Format.Whitespace {
     <#
@@ -200,6 +201,116 @@ function Bintils.Common.Format.Whitespace {
     }
 }
 
+
+
+function Bintils.Common.ParseFixedWidth.HeaderNames {
+    <#
+    .synopsis
+        gets the data / contents when you know the widths
+    .NOTES
+        original snippet was
+            [regex]::Split( $stdout[0], '\s{3,}') | Join.UL
+    .EXAMPLE
+        Bintils.Common.ParseFixedWidth.HeaderNames -InputText $stdout[0] | ft * -AutoSize
+        VERBOSE: KEY NAME; LOCAL_VALUE;
+
+        Name        StartAt EndAt Index DisplayWhitespace DisplayFullTextWhitespace
+        ----        ------- ----- ----- ----------------- -------------------------
+        KEY NAME          0     8     0 KEY␠NAME          KEY␠NAME␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠LOCAL_VALUE␠␠␠␠␠␠␠␠
+        LOCAL_VALUE       0    11     1 LOCAL_VALUE       KEY␠NAME␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠LOCAL_VALUE␠␠␠␠␠␠␠␠
+                          0     0     2                   KEY␠NAME␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠LOCAL_VALUE␠␠␠␠␠␠␠␠
+    .LINK
+        Bintils.Common.ParseFixedWidth.Columns
+    .LINK
+        Bintils.Common.ParseFixedWidth.HeaderNames
+    #>
+    [CmdletBinding()]
+    param(
+        [Alias('Line', 'Text', 'Contents')]
+        [Parameter(Mandatory, Position=0)]
+        [string]$InputText,
+
+        [Parameter()]
+        [int]$MinWidthDelim = 3,
+
+        [Parameter()]
+        [hashtable]$Options = @{}
+    )
+    $Config = nin.MergeHash -OtherHash ($Options ?? @{}) -BaseHash @{
+        AlwaysTrimCrumbs = $false
+    }
+
+    # Detect widths for parsing
+    $reSplit =
+        '\s{num,}' -replace 'num', $MinWidthDelim
+
+    'using regex: "{0}"' -f $RegexRep | write-verbose
+    $Segments = [Regex]::Split( $InputText, $reSplit )
+        ?{ -not [String]::IsNullOrWhiteSpace( $_ ) }
+
+    if($Segments.count -le 1) {
+        write-error "Expected more than 1 segment! Check input for Regex: '$reSplit' and Text: '$InputText'"
+    }
+    # if($Config.AlwaysTrimCrumbs) {
+    #     $Segments = foreach($item in $Segments) { $Item.Trim() }
+    # }
+    $Segments | Join-String -sep '; ' | write-verbose -verbose
+
+    class ParsedFixedWidthColumn {
+        [string]$Name = ''
+        [int]$StartAt = 0
+        [int]$EndAt = 0
+        [int]$Index = 0
+        [int]$Width = 0
+        [string]$DisplayWhitespace = ''
+        [string]$DisplayFullTextWhitespace = ''
+        hidden [string]$FullText = ''
+    }
+
+    $ColumnIndex = 0
+    $cur_start = 0
+    $prev_end = 0
+
+    # $cur_end = $cur_start + $cur_width
+    $all_columns =
+        @(foreach($Item in $segments) {
+            $curWord_Len = $Item.length
+            $cur_start = $prev_end
+            # $cur_end = 0 + $curWord_Len
+
+            # $meta = [ordered]@{
+            #     Name = $Item
+            #     StartAt = 0
+            #     Index = $ColumnIndex
+            # }
+            # [pscustomobject]$meta
+            [ParsedFixedWidthColumn]@{
+                Name = $Item
+                Width = $Item.Length
+                StartAt = $cur_start
+                EndAt = $cur_end
+                Index = ( $columnIndex++ )
+                FullText = $InputText
+                DisplayWhitespace = $Item | fcc
+                DisplayFullTextWhitespace = $InputText | Fcc
+            }
+            $prev_end = $cur_end
+        })
+
+
+    return $all_columns
+}
+function Bintils.Common.ParseFixedWidth.Columns {
+    <#
+    .synopsis
+        gets the data / contents when you know the widths
+    .LINK
+        Bintils.Common.ParseFixedWidth.Columns
+    .LINK
+        Bintils.Common.ParseFixedWidth.HeaderNames
+    #>
+
+}
 function Bintils.Common.New.CompletionResult {
     [Alias(
         'Bintils.CompletionResult',
