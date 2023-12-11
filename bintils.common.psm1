@@ -232,7 +232,7 @@ function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
         Bintils.Common.Parse.FixedWidthColumns
     #>
     [Outputtype(
-        'ParsedFixedWidthColumn[]',
+        'ParsedFixedWidthColumnSchema[]',
         'object[]'
     )]
     [CmdletBinding()]
@@ -252,7 +252,7 @@ function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
     )
     $Config = nin.MergeHash -OtherHash ($Options ?? @{}) -BaseHash @{
         AlwaysTrimNames = $true
-        # DropBlankCrumbs = $true
+        DropBlankCrumbs = $true
     }
     # Detect widths for parsing
 
@@ -270,7 +270,7 @@ $regex = @{
     #     |Ft -AutoSize
     #     | write-host
 
-    class ParsedFixedWidthColumn {
+    class ParsedFixedWidthColumnSchema {
         [string]$Name = ''
         # [int]$StartAt = 0
         # [int]$EndAt = 0 # end at is also total width
@@ -282,7 +282,11 @@ $regex = @{
     $position = 0
     $columns = @(
     foreach($fi in @( $foundIndex )) {
-        $parsed = [ParsedFixedWidthColumn]@{
+        # if($fi.Width -eq 0) { continue }
+        # if($Config.DropBlankCrumbs) {
+        #     if($fi.Length -eq 0) { continue } # less easy because of name
+        # }
+        $parsed = [ParsedFixedWidthColumnSchema]@{
             Name = $fi.Value | Join-String
             Index = $fi.Index
             Width = $fi.Length
@@ -295,28 +299,12 @@ $regex = @{
         $parsed
     })
 
-    return $columns
+    $selected = @(
+        $Config.DropBlankCrumbs ?
+            $columns.where({$_.Index -ne -1 -and  $_.Width -gt 0 }) :
+            $columns )
 
-
-
-# # }
-
-
-
-
-#     return @()
-
-
-
-#     $regex.ColumnName | Write-verbose -verb
-
-    # # no longer used? test on weird names
-    # $selected = @(
-    #     $Config.DropBlankCrumbs ?
-    #         $all_columns.where({$_.Index -ne -1 }) :
-    #         $all_columns )
-
-    # return $selected
+    return $selected  # | ?{ $_.Width -gt 0}
 }
 function Bintils.Common.Parse.FixedWidthColumns.GetRows {
     <#
@@ -330,12 +318,95 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
         Bintils.Common.Parse.FixedWidthColumns
     #>
     param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [Alias('Lines', 'InputObject', 'Text', 'Str', 'In', 'Data', 'Rows', 'Records', 'Contents')]
         [string[]]$InputText,
 
-        #
-        $HeaderData
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [object[]]$HeaderData
     )
+
+    class ParsedFixedWidthColumnData {
+        [string]$Name = ''
+        # [int]$StartAt = 0
+        # [int]$EndAt = 0 # end at is also total width
+        [string]$Text = ''
+        [int]$Position = 0
+    }
+
+
+    # 'refactor: accept type if contains all properties: Index, Width, Name, Position?'
+    # if (  @($HeaderData)[0] -is 'string' ) {
+    #     write-debug -debug 'auto converting text to dimensions'
+    #     $schema = Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $HeaderData
+    # } else {
+    #     $schema = $HeaderData
+    # }
+    # maybe invalid args, else PSCO
+    if ( @( $HeaderData )[0].GetType().Name -ne 'ParsedFixedWidthColumnSchema' ) {
+        'WarnOnly: FirstHeaderDataElement was not of type [ParsedFixedWidthColumnSchema]'
+            | write-verbose
+    }
+
+    [string]$firstColName = @( $schema )[0].Name
+    if( [string]::IsNullOrWhiteSpace( $firstColName ) ) {
+        $Schema | Select -first 1 | COnvertTo-Json -compress | Write-debug
+        throw "InvalidArgumentException, No 'Name' in schema's first column!'"
+
+    }
+    foreach($Line in @($InputText) ) {
+        $Col_Order = 0
+        if( $Line.StartsWith( 'Billy' )  ) { continue }
+        hr
+        foreach($col in $schema ) {
+            $At, $Width = $col.Index, $Col.Width
+
+            # replace this with [Math]::Clamp to ensure save substr
+            $Text = $Line.
+                        PadRight( $at + $Width, ' ').
+                        Substring( $at, $Width )
+            $parsed = [ParsedFixedWidthColumnData]@{
+                Name = $col.Name
+                Text = $Text
+                Position = ( $Col_Order++ )
+            }
+            $parsed
+
+        }
+    }
+    return
+
+
+    # wait-debugger
+    $Position = 0
+    foreach($Line in $InputText) {
+            # this row is the column header?  skip.
+            if( $data.StartsWith( $firstColName ) ) { continue }
+
+            foreach( $fi in @( $schema )  ) {
+                $Text = $Line.PadRight( $at + $Width, ' ').Substring( $at, $Width )
+                $parsed = [ParsedFixedWidthColumnData]@{
+                    Name = $fi.Name
+                    Text = $Text
+                    Position = ( $Position++ )
+                }
+                $parsed
+                # $at, $Width = $fi.Index, $fi.Width
+                # $line.
+                #     # padRight( 300, ' ').
+                #     # naive safe substr by padding it
+                #     PadRight( $at + $Width , ' ').
+                #     Substring( $at, $Width ) # | Show.space
+                #     # 'x'
+                '...' | write-host -fore 'orange'
+
+
+            }
+
+
+    }
 }
 
 function Bintils.Common.ParseFixedWidthColumns {
@@ -350,6 +421,7 @@ function Bintils.Common.ParseFixedWidthColumns {
         Bintils.Common.Parse.FixedWidthColumns
 
     #>
+    throw 'run both, merged'
 
 }
 function Bintils.Common.New.CompletionResult {
