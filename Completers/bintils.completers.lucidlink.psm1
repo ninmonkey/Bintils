@@ -199,6 +199,100 @@ function Bintils.LucidLink.Parse.Info {
     }
     return $meta
 }
+
+function __parsing.CmdConfig.AsEffective {
+    <#
+    .notes
+
+    example text to be parsed:
+
+
+    Pwsh> lucid config | select -First 4
+
+        KEY NAME                                      EFFECTIVE                        CONFIGURED                       SCOPE        STATUS
+        Compressor.Concurrency                        12                               0                                Default
+        Compressor.DestageThreshold                   1024                             1024                             Default
+
+    Pwsh> lucid config --effective | select -First 4
+
+        KEY NAME                                      EFFECTIVE                        CONFIGURED                       SCOPE        STATUS
+        Compressor.Concurrency                        12                               0                                Default
+        Compressor.DestageThreshold                   1024                             1024                             Default
+
+    #>
+    param(
+        [string[]]$InputText
+    )
+    $rawStdout = $InputText
+    $rawHeaderLine = $rawStdout | select -first 1 -skip 1
+    $linesToParse = $rawStdout | Select -skip 2
+
+    $curLine = $rawHeaderLine
+    $colName1 = 'KEY NAME'
+    $colName2 = 'EFFECTIVE'
+    $colName3 = 'CONFIGURED'
+    $colName4 = 'SCOPE'
+    $colName5 = 'STATUS'
+    $EndOfText = $rawStdout
+
+    [regex]::Split( $stdout[0], '\s{3,}') | Join.UL
+    
+    # $rawHeaderLine.Substring( $from, ($To-$from) )
+# $col1 = $curLine.Substring(
+    # $linesToParse | %{
+        # [string]$curLine = $_
+
+    # todo: Refactor as Bintils.Common.Parse-FixedColumnWidths 2023-12-11
+
+    $lineNum = -1
+    foreach($curLine in $LinesToParse) {
+        $lineNum++
+        if($CurLine.length -eq 0) { continue }
+        $ParsedLine = [ordered]@{
+            PSTypeName = 'Bintils.LucidLink.ParsedCommand.Config'
+        }
+        $curLineLength = $curLine.Length
+        # $from, $To =
+        #     $rawHeaderLine.IndexOf( $colName2 ),
+        #     $rawHeaderLine.IndexOf( $colName3 )
+
+        $from = 0
+        $to   = $rawHeaderLine.indexOf( $colName2 )
+        $curLen = [math]::Clamp(($to - $from),
+                                    0, $curLineLength )
+        $ParsedLine.$colName1 = $curLine.Substring( $from, $curLen )
+
+        $from = $rawHeaderLine.indexOf( $colName2 )
+        $to   = $rawHeaderLine.indexOf( $colName3 )
+        $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
+        if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
+            write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
+        $parsedLine.$ColName2 = $curLine.Substring( $from, $curLen )
+
+        $from = $rawHeaderLine.indexOf( $colName3 )
+        $to   = $rawHeaderLine.indexOf( $colName4 )
+        $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
+        if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
+            write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
+        $parsedLine.$ColName3 = $curLine.Substring( $from, $curLen )
+
+        $from = $rawHeaderLine.indexOf( $colName4 )
+        $to   = $rawHeaderLine.indexOf( $colName5 )
+        $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
+        if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
+            write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
+        $parsedLine.$ColName4 = $curLine.Substring( $from, $curLen )
+
+        $from = $rawHeaderLine.indexOf( $colName5 )
+        $to   = $curLineLength
+        $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
+        if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
+            write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
+        $parsedLine.$ColName5 = $curLine.Substring( $from, $curLen )
+
+        [pscustomobject]$ParsedLine
+    }
+}
 function Bintils.LucidLink.Parse.Config {
      <#
     .SYNOPSIS
@@ -262,8 +356,15 @@ function Bintils.LucidLink.Parse.Config {
     $BinArgs | Bintils.Common.PreviewArgs
     $rawStdout = & Lucid @binArgs
 
-    $rawHeaderLine = $rawStdout | select -first 1 -skip 1
-    $linesToParse = $rawStdout | Select -skip 2
+    switch($ShowScope) {
+        { $_ -in 'effective', 'global' } {
+            __parsing.CmdConfig.AsEffective -Lines $rawStdout
+        }
+        default { throw "UnhandledScope: $ShowInScope"}
+    }
+
+
+
 
     # $rawHeaderLine -match @'
 # (?x)
@@ -277,73 +378,12 @@ function Bintils.LucidLink.Parse.Config {
 # $
 
 # '@
-    try {
-        $curLine = $rawHeaderLine
-        $colName1 = 'KEY NAME'
-        $colName2 = 'EFFECTIVE'
-        $colName3 = 'CONFIGURED'
-        $colName4 = 'SCOPE'
-        $colName5 = 'STATUS'
-        $EndOfText = $rawStdout
-        # $rawHeaderLine.Substring( $from, ($To-$from) )
-    # $col1 = $curLine.Substring(
-        # $linesToParse | %{
-            # [string]$curLine = $_
+    # try {
 
-        # todo: Refactor as Bintils.Common.Parse-FixedColumnWidths 2023-12-11
-
-        $lineNum = -1
-        foreach($curLine in $LinesToParse) {
-            $lineNum++
-            if($CurLine.length -eq 0) { continue }
-            $ParsedLine = [ordered]@{
-                PSTypeName = 'Bintils.LucidLink.ParsedCommand.Config'
-            }
-            $curLineLength = $curLine.Length
-            # $from, $To =
-            #     $rawHeaderLine.IndexOf( $colName2 ),
-            #     $rawHeaderLine.IndexOf( $colName3 )
-
-            $from = 0
-            $to   = $rawHeaderLine.indexOf( $colName2 )
-            $curLen = [math]::Clamp(($to - $from),
-                                     0, $curLineLength )
-            $ParsedLine.$colName1 = $curLine.Substring( $from, $curLen )
-
-            $from = $rawHeaderLine.indexOf( $colName2 )
-            $to   = $rawHeaderLine.indexOf( $colName3 )
-            $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
-            if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
-                write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
-            $parsedLine.$ColName2 = $curLine.Substring( $from, $curLen )
-
-            $from = $rawHeaderLine.indexOf( $colName3 )
-            $to   = $rawHeaderLine.indexOf( $colName4 )
-            $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
-            if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
-                write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
-            $parsedLine.$ColName3 = $curLine.Substring( $from, $curLen )
-
-            $from = $rawHeaderLine.indexOf( $colName4 )
-            $to   = $rawHeaderLine.indexOf( $colName5 )
-            $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
-            if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
-                write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
-            $parsedLine.$ColName4 = $curLine.Substring( $from, $curLen )
-
-            $from = $rawHeaderLine.indexOf( $colName5 )
-            $to   = $curLineLength
-            $curLen = [math]::Clamp( ($to - $from), 0, $curLineLength )
-            if($from -eq -1 -or $to -eq -1 -or ($to - $from) -gt $curLineLength ) {
-                write-error "failed Parsing line: LineNum: $lineNum, From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'" }
-            $parsedLine.$ColName5 = $curLine.Substring( $from, $curLen )
-
-            [pscustomobject]$ParsedLine
-        }
-    } catch {
-        throw
-        # throw "Lucidlink.Config parsing failed! $_"
-    }
+    # } catch {
+    #     throw
+    #     # throw "Lucidlink.Config parsing failed! $_"
+    # }
 }
 function Bintils.LucidLink.Parse.Logs {
     [Alias(
