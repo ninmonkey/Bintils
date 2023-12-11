@@ -262,6 +262,7 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
         [int]$EndAt = 0
         [int]$Index = 0
         [int]$Width = 0
+        [int]$TotalWidth = 0
         [string]$DisplayWhitespace = ''
         [string]$DisplayFullTextWhitespace = ''
         hidden [string]$FullText = ''
@@ -274,9 +275,12 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
     # $cur_end = $cur_start + $cur_width
     $all_columns =
         @(foreach($Item in $segments) {
-            $curWord_Len = $Item.length
+            $item_len = $Item.Length
+            if($item_len -eq 0) { continue }
+
             $cur_start = $prev_end
-            # $cur_end = 0 + $curWord_Len
+            $cur_end   = $prev_end + $item_len
+                # 0 + $item_len
 
             # $meta = [ordered]@{
             #     Name = $Item
@@ -285,10 +289,12 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
             # }
             # [pscustomobject]$meta
             [ParsedFixedWidthColumn]@{
-                Name = $Item
-                Width = $Item.Length
-                StartAt = $cur_start
-                EndAt = $cur_end
+                Name       = $Item
+                StartAt    = $cur_start
+                EndAt      = $cur_end
+                Width      = $item_len
+                TotalWidth = $item_len
+
                 Index = ( $columnIndex++ )
                 FullText = $InputText
                 DisplayWhitespace = $Item | fcc
