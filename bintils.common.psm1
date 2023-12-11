@@ -206,7 +206,7 @@ function Bintils.Common.Format.Whitespace {
 function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
     <#
     .synopsis
-        gets the data / contents when you know the widths
+        gets header sizes for a fixed-column text outputs
     .NOTES
         original snippet was
             [regex]::Split( $stdout[0], '\s{3,}') | Join.UL
@@ -225,9 +225,11 @@ function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
         LOCAL_VALUE       0    11     1 LOCAL_VALUE       KEY␠NAME␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠LOCAL_VALUE␠␠␠␠␠␠␠␠
                           0     0     2                   KEY␠NAME␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠␠LOCAL_VALUE␠␠␠␠␠␠␠␠
     .LINK
-        Bintils.Common.ParseFixedWidth.Columns
+        Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize
     .LINK
-        Bintils.Common.ParseFixedWidth.HeaderNames
+        Bintils.Common.Parse.FixedWidthColumns.GetRows
+    .LINK
+        Bintils.Common.Parse.FixedWidthColumns
     #>
     [Outputtype(
         'ParsedFixedWidthColumn[]',
@@ -296,42 +298,57 @@ $regex = @{
     return $columns
 
 
-    # foreach($line in $data) {
 
-    foreach( $fi in $foundIndex ) {
-        $p,$l= $fi.Index, $fi.Length
-        $line.
-            # padRight( 300, ' ').
-            PadRight( $p + $l , ' ').
-            Substring( $p, $l ) | Show.space
-    }
-# }
+# # }
 
 
 
 
-    return @()
+#     return @()
 
 
 
-    $regex.ColumnName | Write-verbose -verb
+#     $regex.ColumnName | Write-verbose -verb
 
-    $selected = @(
-        $Config.DropBlankCrumbs ?
-            $all_columns.where({$_.Index -ne -1 }) :
-            $all_columns )
+    # # no longer used? test on weird names
+    # $selected = @(
+    #     $Config.DropBlankCrumbs ?
+    #         $all_columns.where({$_.Index -ne -1 }) :
+    #         $all_columns )
 
-    return $selected
+    # return $selected
+}
+function Bintils.Common.Parse.FixedWidthColumns.GetRows {
+    <#
+    .SYNOPSIS
+        Parses rows using known offsets
+    .LINK
+        Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize
+    .LINK
+        Bintils.Common.Parse.FixedWidthColumns.GetRows
+    .LINK
+        Bintils.Common.Parse.FixedWidthColumns
+    #>
+    param(
+        [Alias('Lines', 'InputObject', 'Text', 'Str', 'In', 'Data', 'Rows', 'Records', 'Contents')]
+        [string[]]$InputText,
+
+        #
+        $HeaderData
+    )
 }
 
 function Bintils.Common.ParseFixedWidthColumns {
     <#
     .synopsis
-        gets the data / contents when you know the widths
+        gets the header sizes, and contents in one go
     .LINK
-        Bintils.Common.ParseFixedWidth.Columns
+        Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize
     .LINK
-        Bintils.Common.ParseFixedWidth.HeaderNames
+        Bintils.Common.Parse.FixedWidthColumns.GetRows
+    .LINK
+        Bintils.Common.Parse.FixedWidthColumns
+
     #>
 
 }
