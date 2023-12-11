@@ -234,17 +234,22 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
         [int]$MinWidthDelim = 3,
 
         [Parameter()]
+        [ArgumentCompletions(
+            '@{ DropBlankCrumbs = $false }'
+        )]
         [hashtable]$Options = @{}
     )
     $Config = nin.MergeHash -OtherHash ($Options ?? @{}) -BaseHash @{
         AlwaysTrimCrumbs = $false
+        DropBlankCrumbs = $true
     }
 
     # Detect widths for parsing
     $reSplit =
-        '\s{num,}' -replace 'num', $MinWidthDelim
+        # '\s{num,}' -replace 'num', $MinWidthDelim
+        '(\s{num,})' -replace 'num', $MinWidthDelim
 
-    'using regex: "{0}"' -f $RegexRep | write-verbose
+    'using regex: "{0}"' -f $reSplit | write-verbose
     $Segments = [Regex]::Split( $InputText, $reSplit )
         ?{ -not [String]::IsNullOrWhiteSpace( $_ ) }
 
@@ -254,16 +259,16 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
     # if($Config.AlwaysTrimCrumbs) {
     #     $Segments = foreach($item in $Segments) { $Item.Trim() }
     # }
-    $Segments | Join-String -sep '; ' | write-verbose -verbose
+    # $Segments | Join-String -sep '; ' | write-verbose -verbose
 
     class ParsedFixedWidthColumn {
         [string]$Name = ''
         [int]$StartAt = 0
-        [int]$EndAt = 0
+        [int]$EndAt = 0 # end at is also total width
         [int]$Index = 0
         [int]$Width = 0
-        [int]$TotalWidth = 0
         [string]$DisplayWhitespace = ''
+
         [string]$DisplayFullTextWhitespace = ''
         hidden [string]$FullText = ''
     }
@@ -277,6 +282,7 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
         @(foreach($Item in $segments) {
             $item_len = $Item.Length
             if($item_len -eq 0) { continue }
+            $isBlank_Item = [string]::IsNullOrWhiteSpace( $Item )
 
             $cur_start = $prev_end
             $cur_end   = $prev_end + $item_len
@@ -288,24 +294,45 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
             #     Index = $ColumnIndex
             # }
             # [pscustomobject]$meta
-            [ParsedFixedWidthColumn]@{
+
+            $parsedInfo = [ParsedFixedWidthColumn]@{
                 Name       = $Item
                 StartAt    = $cur_start
                 EndAt      = $cur_end
                 Width      = $item_len
-                TotalWidth = $item_len
 
-                Index = ( $columnIndex++ )
+                Index = $IsBlank_Item ? -1 : $columnIndex
                 FullText = $InputText
                 DisplayWhitespace = $Item | fcc
                 DisplayFullTextWhitespace = $InputText | Fcc
             }
+            if($parsedInfo.Index -ne -1) {
+                # $tryValidate = $InputText.substring( $cur_start, $item_len )
+                $tryValidate = $InputText.substring( $parsedInfo.StartAt, $parsedInfo.Width )
+                $parsedInfo.Name -eq $tryValidate
+                    | Join-string -op 'substr is name? '
+                    | Join-String -op (Join-String -f 'Name: {0}; ' -in $ParsedInfo.Name)
+                    | write-verbose
+            }
+
+
+            # ignore whitespace for column counts
+            if( -not  $IsBlank_Item) {
+                $ColumnIndex++
+            }
             $prev_end = $cur_end
+
+            $parsedInfo ; continue;
         })
 
+    $selected = @(
+        $Config.DropBlankCrumbs ?
+            $all_columns.where({$_.Index -ne -1 }) :
+            $all_columns )
 
-    return $all_columns
+    return $selected
 }
+
 function Bintils.Common.ParseFixedWidth.Columns {
     <#
     .synopsis
