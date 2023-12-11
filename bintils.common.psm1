@@ -239,7 +239,7 @@ function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
     param(
         [Alias('Line', 'Text', 'Contents')]
         [Parameter(Mandatory, Position=0)]
-        [string]$InputText,
+        [object[]]$InputText,
 
         [Parameter()]
         [int]$MinWidthDelim = 3,
@@ -263,8 +263,12 @@ $regex = @{
     ($ | [ ]{size,} )
 '@ -replace 'size', $MinWidthDelim
 }
+    # default to first line if lines
+    'Multiple lines passed, assuming first line is columns' | write-verbose
+    $Scalar = @( $InputText )[0]
+    # $
 
-    $foundIndex = [regex]::matches( $InputText, $Regex.ColumnName )
+    $foundIndex = [regex]::matches( $Scalar, $Regex.ColumnName )
 
     # ( $foundIndex = [regex]::Matches($Header, $reColumn )  )
     #     |Ft -AutoSize
@@ -309,7 +313,10 @@ $regex = @{
 function Bintils.Common.Parse.FixedWidthColumns.GetRows {
     <#
     .SYNOPSIS
-        Parses rows using known offsets
+        parses rows using known column sizes
+    .NOTES
+        future
+            - [ ] simplfy passing a schema in other formats, or as an array of integers
     .LINK
         Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize
     .LINK
@@ -325,6 +332,10 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
+        [ArgumentCompletions(
+            '$schema',
+            '( Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $data[0] )'
+        )]
         [object[]]$HeaderData
     )
 
@@ -358,8 +369,8 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
     }
     foreach($Line in @($InputText) ) {
         $Col_Order = 0
-        if( $Line.StartsWith( 'Billy' )  ) { continue }
-        hr
+        if( $Line.StartsWith( $firstColName )  ) { continue }
+
         foreach($col in $schema ) {
             $At, $Width = $col.Index, $Col.Width
 
@@ -377,39 +388,9 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
         }
     }
     return
-
-
-    # wait-debugger
-    $Position = 0
-    foreach($Line in $InputText) {
-            # this row is the column header?  skip.
-            if( $data.StartsWith( $firstColName ) ) { continue }
-
-            foreach( $fi in @( $schema )  ) {
-                $Text = $Line.PadRight( $at + $Width, ' ').Substring( $at, $Width )
-                $parsed = [ParsedFixedWidthColumnData]@{
-                    Name = $fi.Name
-                    Text = $Text
-                    Position = ( $Position++ )
-                }
-                $parsed
-                # $at, $Width = $fi.Index, $fi.Width
-                # $line.
-                #     # padRight( 300, ' ').
-                #     # naive safe substr by padding it
-                #     PadRight( $at + $Width , ' ').
-                #     Substring( $at, $Width ) # | Show.space
-                #     # 'x'
-                '...' | write-host -fore 'orange'
-
-
-            }
-
-
-    }
 }
 
-function Bintils.Common.ParseFixedWidthColumns {
+function Bintils.Common.Parse.FixedWidthColumns {
     <#
     .synopsis
         gets the header sizes, and contents in one go
@@ -421,7 +402,18 @@ function Bintils.Common.ParseFixedWidthColumns {
         Bintils.Common.Parse.FixedWidthColumns
 
     #>
-    throw 'run both, merged'
+    param(
+        # Lines of text. auto detect schema using first row
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [Alias('Lines', 'InputObject', 'Text', 'Str', 'In', 'Data', 'Rows', 'Records', 'Contents')]
+        [string[]]$InputText
+    )
+    $header = $InputText | Select -first 1
+    $rows =  $InputText  | Select -skip 1
+
+    Bintils.Common.Parse.FixedWidthColumns.GetRows -InputText $Rows -HeaderData $Header
+    return
 
 }
 function Bintils.Common.New.CompletionResult {
