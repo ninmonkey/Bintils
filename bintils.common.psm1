@@ -202,6 +202,33 @@ function Bintils.Common.Format.Whitespace {
 }
 
 
+function Bintils.Common.Parse.Filter-FirstNonBlank {
+    <#
+    .synopsis
+        return first string in a list of text, ensure result is a scalar. might work for no-text
+    .EXAMPLE
+        > Bintils.Common.Parse.Filter-FirstNonBlank -InputText '','cat', 'dog'
+
+            'cat'
+
+    #>
+    [OutputType('System.String')]
+    param(
+        [Parameter()]
+        [Alias('Lines', 'Text', 'InputText', 'In')]
+        [object[]] $InputObject,
+
+        # any blanks should be skipped, else just empty strings ?
+        [switch]$NoIgnoreWhitespace
+    )
+    if(-not $NoIgnoreWhitespace ) {
+        $InputObject | ?{ ($_)?.ToString().Length -gt 0 } | Select -First 1
+        return
+    }
+    $InputObject | ?{ -not [String]::IsNullOrWhiteSpace( $_ ) } | Select -First 1
+    return
+}
+
 
 function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
     <#
@@ -211,9 +238,23 @@ function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
         original snippet was
             [regex]::Split( $stdout[0], '\s{3,}') | Join.UL
     .example
-        $header = 'Goat  Name            Id        Region                Kind     Ears'
-        Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $header|ft
+        # main entry point:
+        > Bintils.Common.Parse.FixedWidthColumns -InputText $data
 
+        # else
+        > Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $data
+        > Bintils.Common.Parse.FixedWidthColumns
+    .example
+        > $header = 'Goat  Name            Id        Region                Kind     Ears'
+        > Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $header | ft
+
+            Name       Index Width Position
+            ----       ----- ----- --------
+            Goat  Name     0    22        0
+            Id            22    10        1
+            Region        32    22        2
+            Kind          54     9        3
+            Ears          63     4        4
 
     .EXAMPLE
         Bintils.Common.ParseFixedWidth.HeaderNames -InputText $stdout[0] | ft * -AutoSize
@@ -265,10 +306,12 @@ $regex = @{
 }
     # default to first line if lines
     'Multiple lines passed, assuming first line is columns' | write-verbose
-    $Scalar = @( $InputText )[0]
+    # $Scalar = @( $InputText )[0]
+    # $firstNonBlank = $InputText | ?{ $_.Length -gt 0 } | Select -first 1
+    $firstNonBlank = Bintils.Common.Parse.Filter-FirstNonBlank -InputObject $InputText
     # $
 
-    $foundIndex = [regex]::matches( $Scalar, $Regex.ColumnName )
+    $foundIndex = [regex]::matches( $firstNonBlank, $Regex.ColumnName )
 
     # ( $foundIndex = [regex]::Matches($Header, $reColumn )  )
     #     |Ft -AutoSize
@@ -315,8 +358,16 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
     .SYNOPSIS
         parses rows using known column sizes
     .NOTES
-        future
-            - [ ] simplfy passing a schema in other formats, or as an array of integers
+
+    .EXAMPLE
+        # either mode is okay
+        Bintils.Common.Parse.FixedWidthColumns.GetRows -InputText $data -HeaderData $data
+        Bintils.Common.Parse.FixedWidthColumns.GetRows -InputText $data -HeaderData $data[0]
+    .EXAMPLE
+        $ll = lucid config --no-trim --effective
+        ( $schema = bintils.common.parse.FixedWidthColumns.GetHeaderSize -InputText $ll )
+        Bintils.Common.Parse.FixedWidthColumns.GetRows -InputText @( $ll ) -HeaderData $schema|ft
+
     .LINK
         Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize
     .LINK
@@ -325,38 +376,51 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
         Bintils.Common.Parse.FixedWidthColumns
     #>
     param(
+        # lines of text. optionally including the header rows, which will be filtred out
+        # remove binding, for a better UX
         [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [AllowEmptyString()]
+        # [ValidateNotNullOrEmpty()] # it validates per element, breaking my intended purpose
         [Alias('Lines', 'InputObject', 'Text', 'Str', 'In', 'Data', 'Rows', 'Records', 'Contents')]
         [string[]]$InputText,
 
+        # either schema from .GetHeaderSize, else rows of text. if multiple lines, assume just the first line is the header
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [ArgumentCompletions(
             '$schema',
             '( Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $data[0] )'
         )]
-        [object[]]$HeaderData
+        [object[]]$HeaderData,
+
+        [switch]$NoTrimValues
     )
 
     class ParsedFixedWidthColumnData {
         [string]$Name = ''
-        # [int]$StartAt = 0
-        # [int]$EndAt = 0 # end at is also total width
         [string]$Text = ''
-        [int]$Position = 0
+        [int]$ColumnId = 0
+        [int]$RowId = 0
     }
 
-
     # 'refactor: accept type if contains all properties: Index, Width, Name, Position?'
+    $firstHeader = Bintils.Common.Parse.Filter-FirstNonBlank -InputObject $HeaderData
+
     # if (  @($HeaderData)[0] -is 'string' ) {
-    #     write-debug -debug 'auto converting text to dimensions'
-    #     $schema = Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $HeaderData
-    # } else {
-    #     $schema = $HeaderData
-    # }
+    if( $FirstHeader -is 'string' ){
+        write-debug -debug 'auto converting text to dimensions'
+        write-verbose -verb 'auto converting text to dimensions'
+        # $schema = Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $HeaderData
+        $schema = Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $firstHeader
+    } else {
+        $schema = $HeaderData
+    }
+
     # maybe invalid args, else PSCO
-    if ( @( $HeaderData )[0].GetType().Name -ne 'ParsedFixedWidthColumnSchema' ) {
+    if ( @( $schema )[0].GetType().Name -ne 'ParsedFixedWidthColumnSchema' ) {
+    # if ( @( $HeaderData )[0].GetType().Name -ne 'ParsedFixedWidthColumnSchema' ) {
         'WarnOnly: FirstHeaderDataElement was not of type [ParsedFixedWidthColumnSchema]'
             | write-verbose
     }
@@ -367,8 +431,10 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
         throw "InvalidArgumentException, No 'Name' in schema's first column!'"
 
     }
+    $rowId = 0
+    $colId = 0
     foreach($Line in @($InputText) ) {
-        $Col_Order = 0
+        $colId = 0
         if( $Line.StartsWith( $firstColName )  ) { continue }
 
         foreach($col in $schema ) {
@@ -381,11 +447,15 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
             $parsed = [ParsedFixedWidthColumnData]@{
                 Name = $col.Name
                 Text = $Text
-                Position = ( $Col_Order++ )
+                ColumnId = ( $colId++ )
+                RowId = $RowId
+            }
+            if(-not $NoTrimValues ) {
+                $parsed.Text = $parsed.Text.Trim()
             }
             $parsed
-
         }
+        $rowId++
     }
     return
 }
@@ -393,7 +463,35 @@ function Bintils.Common.Parse.FixedWidthColumns.GetRows {
 function Bintils.Common.Parse.FixedWidthColumns {
     <#
     .synopsis
-        gets the header sizes, and contents in one go
+        entry point to gets the header sizes, and the final table rows in one go
+    .EXAMPLE
+        # future: clean up example to use argument keys
+        $meta = [ordered]@{}
+        $res = Bintils.Common.Parse.FixedWidthColumns -InputText ( lucid config --no-trim --local )
+        $meta = @{}
+        $res | Group RowId | %{
+            $Key   =  $_.group | ? Name -match 'KEY NAME'    | % Text
+            $Value =  $_.group | ? Name -match 'LOCAL_VALUE' | % Text
+            $meta[ $key ] = $Value
+        }
+        $Meta | ft -AutoSize
+        # output
+
+            Name                           Value
+            ----                           -----
+            ObjectScheduler.MaxUploadRate  10MB
+            ObjectScheduler.MaxDownloadRa… 300MB
+            FileSystem.MountPointWindows   J:\lucid_root
+
+            DataCache.Location             J:\lucid_cache
+    .example
+        Bintils.Common.Parse.FixedWidthColumns -InputText ( lucid config --no-trim --local ) | %{
+            $_ | Select -exc *Id
+        } | Json
+
+        # out
+        [{"Name":"KEY NAME","Text":"DataCache.Location"},{"Name":"LOCAL_VALUE","Text":"J:\\lucid_cache"},{"Name":"KEY NAME","Text":"FileSystem.MountPointWindows"},{"Name":"LOCAL_VALUE","Text":"J:\\lucid_root"},{"Name":"KEY NAME","Text":"ObjectScheduler.MaxDownloadRate"},{"Name":"LOCAL_VALUE","Text":"300MB"},{"Name":"KEY NAME","Text":"ObjectScheduler.MaxUploadRate"},{"Name":"LOCAL_VALUE","Text":"10MB"},{"Name":"KEY NAME","Text":""},{"Name":"LOCAL_VALUE","Text":""}]
+
     .LINK
         Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize
     .LINK
@@ -405,11 +503,25 @@ function Bintils.Common.Parse.FixedWidthColumns {
     param(
         # Lines of text. auto detect schema using first row
         [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
+        [AllowNull()]
+        [AllowEmptyCollection()]
+        [AllowEmptyString()]
+        # remove binding validation, for a better UX
+        # [ValidateNotNullOrEmpty()] # it validates per element, breaking my intended purpose
+
         [Alias('Lines', 'InputObject', 'Text', 'Str', 'In', 'Data', 'Rows', 'Records', 'Contents')]
-        [string[]]$InputText
+        [ArgumentCompletions(
+            '( lucid config --no-trim --effective )',
+            '( lucid config --no-trim --local )'
+        )]
+        [string[]]$InputText,
+
+        [ValidateScript({throw 'nyi: make easy casting to hash for unique names'})]
+        [bool]$AsHashtable
     )
-    $header = $InputText | Select -first 1
+
+    $header =  Bintils.Common.Parse.Filter-FirstNonBlank -InputObject $InputText
+    # $header =  $InputText | Select -first 1
     $rows =  $InputText  | Select -skip 1
 
     Bintils.Common.Parse.FixedWidthColumns.GetRows -InputText $Rows -HeaderData $Header
