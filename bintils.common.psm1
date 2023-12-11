@@ -203,13 +203,18 @@ function Bintils.Common.Format.Whitespace {
 
 
 
-function Bintils.Common.ParseFixedWidth.HeaderNames {
+function Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize {
     <#
     .synopsis
         gets the data / contents when you know the widths
     .NOTES
         original snippet was
             [regex]::Split( $stdout[0], '\s{3,}') | Join.UL
+    .example
+        $header = 'Goat  Name            Id        Region                Kind     Ears'
+        Bintils.Common.Parse.FixedWidthColumns.GetHeaderSize -InputText $header|ft
+
+
     .EXAMPLE
         Bintils.Common.ParseFixedWidth.HeaderNames -InputText $stdout[0] | ft * -AutoSize
         VERBOSE: KEY NAME; LOCAL_VALUE;
@@ -224,6 +229,10 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
     .LINK
         Bintils.Common.ParseFixedWidth.HeaderNames
     #>
+    [Outputtype(
+        'ParsedFixedWidthColumn[]',
+        'object[]'
+    )]
     [CmdletBinding()]
     param(
         [Alias('Line', 'Text', 'Contents')]
@@ -235,95 +244,77 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
 
         [Parameter()]
         [ArgumentCompletions(
-            '@{ DropBlankCrumbs = $false }'
+            '@{ AlwaysTrimNames = $false }'
         )]
         [hashtable]$Options = @{}
     )
     $Config = nin.MergeHash -OtherHash ($Options ?? @{}) -BaseHash @{
-        AlwaysTrimCrumbs = $false
-        DropBlankCrumbs = $true
+        AlwaysTrimNames = $true
+        # DropBlankCrumbs = $true
     }
-
     # Detect widths for parsing
-    $reSplit =
-        # '\s{num,}' -replace 'num', $MinWidthDelim
-        '(\s{num,})' -replace 'num', $MinWidthDelim
 
-    'using regex: "{0}"' -f $reSplit | write-verbose
-    $Segments = [Regex]::Split( $InputText, $reSplit )
-        ?{ -not [String]::IsNullOrWhiteSpace( $_ ) }
+$regex = @{
+    ColumnName = @'
+(?x)
+    (?<Item>.*?)
+    ($ | [ ]{size,} )
+'@ -replace 'size', $MinWidthDelim
+}
 
-    if($Segments.count -le 1) {
-        write-error "Expected more than 1 segment! Check input for Regex: '$reSplit' and Text: '$InputText'"
-    }
-    # if($Config.AlwaysTrimCrumbs) {
-    #     $Segments = foreach($item in $Segments) { $Item.Trim() }
-    # }
-    # $Segments | Join-String -sep '; ' | write-verbose -verbose
+    $foundIndex = [regex]::matches( $InputText, $Regex.ColumnName )
+
+    # ( $foundIndex = [regex]::Matches($Header, $reColumn )  )
+    #     |Ft -AutoSize
+    #     | write-host
 
     class ParsedFixedWidthColumn {
         [string]$Name = ''
-        [int]$StartAt = 0
-        [int]$EndAt = 0 # end at is also total width
+        # [int]$StartAt = 0
+        # [int]$EndAt = 0 # end at is also total width
         [int]$Index = 0
         [int]$Width = 0
-        [string]$DisplayWhitespace = ''
-
-        [string]$DisplayFullTextWhitespace = ''
-        hidden [string]$FullText = ''
+        [int]$Position = 0
     }
 
-    $ColumnIndex = 0
-    $cur_start = 0
-    $prev_end = 0
+    $position = 0
+    $columns = @(
+    foreach($fi in @( $foundIndex )) {
+        $parsed = [ParsedFixedWidthColumn]@{
+            Name = $fi.Value | Join-String
+            Index = $fi.Index
+            Width = $fi.Length
+            Position = ($Position++)
+            # DisplayWhitespace =  $fi.Value # | Dotils.Format.Show.Space
+        }
+        if( $Config.AlwaysTrimNames ) {
+            $parsed.Name = $Parsed.Name.Trim()
+        }
+        $parsed
+    })
 
-    # $cur_end = $cur_start + $cur_width
-    $all_columns =
-        @(foreach($Item in $segments) {
-            $item_len = $Item.Length
-            if($item_len -eq 0) { continue }
-            $isBlank_Item = [string]::IsNullOrWhiteSpace( $Item )
-
-            $cur_start = $prev_end
-            $cur_end   = $prev_end + $item_len
-                # 0 + $item_len
-
-            # $meta = [ordered]@{
-            #     Name = $Item
-            #     StartAt = 0
-            #     Index = $ColumnIndex
-            # }
-            # [pscustomobject]$meta
-
-            $parsedInfo = [ParsedFixedWidthColumn]@{
-                Name       = $Item
-                StartAt    = $cur_start
-                EndAt      = $cur_end
-                Width      = $item_len
-
-                Index = $IsBlank_Item ? -1 : $columnIndex
-                FullText = $InputText
-                DisplayWhitespace = $Item | fcc
-                DisplayFullTextWhitespace = $InputText | Fcc
-            }
-            if($parsedInfo.Index -ne -1) {
-                # $tryValidate = $InputText.substring( $cur_start, $item_len )
-                $tryValidate = $InputText.substring( $parsedInfo.StartAt, $parsedInfo.Width )
-                $parsedInfo.Name -eq $tryValidate
-                    | Join-string -op 'substr is name? '
-                    | Join-String -op (Join-String -f 'Name: {0}; ' -in $ParsedInfo.Name)
-                    | write-verbose
-            }
+    return $columns
 
 
-            # ignore whitespace for column counts
-            if( -not  $IsBlank_Item) {
-                $ColumnIndex++
-            }
-            $prev_end = $cur_end
+    # foreach($line in $data) {
 
-            $parsedInfo ; continue;
-        })
+    foreach( $fi in $foundIndex ) {
+        $p,$l= $fi.Index, $fi.Length
+        $line.
+            # padRight( 300, ' ').
+            PadRight( $p + $l , ' ').
+            Substring( $p, $l ) | Show.space
+    }
+# }
+
+
+
+
+    return @()
+
+
+
+    $regex.ColumnName | Write-verbose -verb
 
     $selected = @(
         $Config.DropBlankCrumbs ?
@@ -333,7 +324,7 @@ function Bintils.Common.ParseFixedWidth.HeaderNames {
     return $selected
 }
 
-function Bintils.Common.ParseFixedWidth.Columns {
+function Bintils.Common.ParseFixedWidthColumns {
     <#
     .synopsis
         gets the data / contents when you know the widths
