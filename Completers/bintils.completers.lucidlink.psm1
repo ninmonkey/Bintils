@@ -127,6 +127,24 @@ function Bintils.LucidLink.GetConfigObject {
     }
     return $records
 }
+
+
+
+
+function Bintils.LucidLink.FindConfig.WithoutFd {
+    param(
+        [ArgumentCompletions(
+            'json', 'log', 'cfg', 'mdb'
+        )]
+        [string]$FileType
+    )
+
+    if(-not $HasFdFind ) {
+        gci -path '.'
+        '*.{0}'
+    }
+
+}
 function Bintils.LucidLink.FindConfig {
     [Alias('Lc.FindConfig')]
     param(
@@ -135,6 +153,12 @@ function Bintils.LucidLink.FindConfig {
         )]
         [string]$FileType
     )
+    # if( -not (Bintils.Common.Test-UserHasNativeCommand 'fd')) {
+    if( -not (Bintils.Has-NativeCmd 'fd')) {
+        Bintils.LucidLink.FindConfig.WithoutFd
+        return
+    }
+
     $binArgs = @(
         '-tf'
         if( $FileType ) { '-e', $FileType }
@@ -155,10 +179,14 @@ function Bintils.LucidLink.GetAppLocations {
     return [pscustomobject]$Meta
 }
 function Bintils.LucidLink.Parse.Info {
+    <#
+    .SYNOPSIS
+        returns 'lucid info' as a hashtable
+    #>
     [Alias(
         'Lc.Info'
     )]
-    [OutputType('haSHTABLE')]
+    [OutputType('Hashtable')]
     param()
     [List[Object]]$BinArgs = @(
         'info'
@@ -170,6 +198,121 @@ function Bintils.LucidLink.Parse.Info {
         $meta[ $key ] = $value
     }
     return $meta
+}
+function Bintils.LucidLink.Parse.Config {
+     <#
+    .SYNOPSIS
+        returns 'lucid config'
+    .notes
+        > lucid help config
+
+        lucid config --list [--effective]
+        lucid config --list --local
+        lucid config --list --global
+        lucid config --explain [--KEY1 --KEY2 ...]
+        lucid config --set [--local] --KEY1 VALUE1 [--KEY2 VALUE2 ...] [--password adminPassword]
+        lucid config --set --global --KEY1 VALUE1 [--KEY2 VALUE2 ...] [--password adminPassword]
+        lucid config --delete [--local] --KEY1 [--KEY2 ...] [--password adminPassword]
+        lucid config --delete --global --KEY1 [--KEY2 ...] [--password adminPassword]
+
+        --effective              Currently effective filespace configurations for this client
+        --local                  Local configurations scope. Affects only client where setting is applied
+        --global                 Global configurations scope. Affects each client that connects to the filespace unless overridden with --local for a particular client
+        --set                    Set configuration key(s). Defaults to `local` scope
+        --delete                 Delete configuration key(s). Defaults to `local` scope
+        --password password      An admin user's password. Used with --global and --local options
+        --list                   Display the configuration settings per scope
+        --no-trim                Do not trim long configuration values
+        --explain                Describe what each configuration key affects within Lucid and list its value constraints. Can be used with --KEY
+
+    #>
+    [Alias(
+        'Lc.Config'
+    )]
+    # [OutputType('haSHTABLE')]
+    param(
+        [Parameter(Position=0)]
+        [Alias('Scope')]
+        [ValidateSet(
+            'effective', 'local', 'global', 'default'
+        )]
+        [string]$ShowScope
+    )
+    [List[Object]]$BinArgs = @(
+        'config'
+        '--list'
+        '--no-trim'
+        $ShowScope
+    )
+
+
+    $BinArgs | Bintils.Common.PreviewArgs
+    $rawStdout = & Lucid @binArgs
+
+    $rawHeaderLine = $rawStdout | select -first 1 -skip 1
+    $linesToParse = $rawStdout | Select -skip 2
+
+    # $rawHeaderLine -match @'
+# (?x)
+#   ^
+#   (?<KeyName>.*?)
+
+#   \s{3,}
+#   (?<Effective>.*?)
+
+#   (?<Rest>.*)
+# $
+
+# '@
+    try {
+        $curLine = $rawHeaderLine
+        $colName1 = 'KEY NAME'
+        $colName2 = 'EFFECTIVE'
+        $colName3 = 'CONFIGURED'
+        $colName4 = 'SCOPE'
+        $colName5 = 'STATUS'
+        $EndOfText = $rawStdout
+        $rawHeaderLine.Substring( $from, ($To-$from) )
+    # $col1 = $curLine.Substring(
+        # $linesToParse | %{
+            # [string]$curLine = $_
+        foreach($curLine in $LinesToParse) {
+            if($CurLine.length -eq 0) { continue }
+            $ParsedLine = [ordered]@{
+                PSTypeName = 'Bintils.LucidLink.ParsedCommand.Config'
+            }
+            $curLineLength = $curLine.Length
+            # $from, $To =
+            #     $rawHeaderLine.IndexOf( $colName2 ),
+            #     $rawHeaderLine.IndexOf( $colName3 )
+
+            $from = 0
+            $to   = $rawHeaderLine.indexOf( $colName2 )
+
+            $ParsedLine.$colName1 =
+                $curLine.Substring( $from, ($to - $from ) )
+                # $curLine.Substring( , $curLine.IndexOf( $colName2 ) )
+
+            $from = $rawHeaderLine.indexOf( $colName2 )
+            $to   = $rawHeaderLine.indexOf( $colName3 )
+            if($from -eq -1 -or $to -eq -1) {
+                write-error "failed Parsing line: From: $from, To: $to, Len: $curLineLength, `nText: '$curLine'"
+                # throw "failed Parsing line: From: $from, To: $to, Text: '$curLine'"
+            }
+            if( ( $from + $to) -gt $curLineLength ) {
+                write-error "failed Parsing line, index was out of bounds: found!: From: $from, To: $to, Len: $curLineLength ,`nText: '$curLine'"
+                # throw "failed Parsing line: From: $from, To: $to, Text: '$curLine'"
+            }
+            $ParsedLine.$colName2 =
+                $curLine.Substring( $from, ($to - $from ) )
+
+            [pscustomobject]$ParsedLine
+        }
+        return
+    } catch {
+        throw
+        # throw "Lucidlink.Config parsing failed! $_"
+    }
 }
 function Bintils.LucidLink.Parse.Logs {
     [Alias(
@@ -657,14 +800,14 @@ $scriptBlockNativeCompleter = {
 __module.LucidLink.OnInit
 Register-ArgumentCompleter -CommandName 'Lucid' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
 
-
-
-    export-moduleMember -function @(
-        'Lc.*'
-        'LucidLink.*'
-        'Bintils.LucidLink.*'
-    ) -Alias @(
-        'Lc.*'
-        'LucidLink.*'
-        'Bintils.LucidLink.*'
-    )
+# note: Lc.* will export if you import this module directly
+# but importing bintils itself, will not export
+export-moduleMember -function @(
+    'Lc.*'
+    'LucidLink.*'
+    'Bintils.LucidLink.*'
+) -Alias @(
+    'Lc.*'
+    'LucidLink.*'
+    'Bintils.LucidLink.*'
+)
