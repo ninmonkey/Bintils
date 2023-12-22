@@ -288,20 +288,6 @@ function Bintils.Aws.BuildBinArgs {
         throw "InvalidParametersException: Cannot use both args at once: ColorOn, ColorOff"
     }
 
-
-
-
-    # if($PrefixArgs.count -gt 0) {
-    #     $binArgs = @(
-    #         $PrefixArgs
-    #         $BinArgs
-    #     )
-    #     $binArgs.AddRange(@( $PrefixArgs))
-    # }
-    # if($AppendArgs.count -gt 0) {
-    #     $binArgs.AddRange(@( $AppendArgs))
-    # }
-
     $binArgs = @(
         $PrefixArgs
         $BinArgs
@@ -649,10 +635,11 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
 
         $Completions = @(
             $state.ProfileNames | %{
+                if( [String]::IsNullOrEmpty( $Item )) { return } # ListItem blank will throw
                 $Item         = $_
-                $toMatch      = $_
+                $toMatch      = $Item
                 $toCompleteAs = $Item # Bintils.WhenContainsSpaces-FormatQuotes -Text $Item
-                New.Aws.CompletionResult -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
+                New.Aws.CompletionResult -ListItemText $Item -CompletionText $toCompleteAs -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
             } | %{
                 $_.ToCompletion()
             }
