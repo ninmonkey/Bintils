@@ -14,6 +14,8 @@ $script:__moduleConfig = @{
 }
 $script:awsCache = @{}
 
+
+
 function Bintils.Aws.BuildBinArgs {
     <#
     .SYNOPSIS
@@ -342,7 +344,9 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
             return $found
         #>
         if( -not ($state)?.ProfileNames ) {
-            $state.ProfileNames = aws configure list-profiles  | Sort-object -Unique
+            # write-warning 'build bin args here: AwsNameCompelter'
+            $state.ProfileNames = aws configure list-profiles --no-cli-auto-prompt | Sort-object -Unique
+                # aws configure list-profiles
         }
 
         $Completions = @(
@@ -350,15 +354,19 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
                 $Item         = $_
                 $toMatch      = $_
                 $toCompleteAs = $Item # Bintils.WhenContainsSpaces-FormatQuotes -Text $Item
-
-                New.AwsCR -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
+                New.Aws.CompletionResult -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
+            } | %{
+                $_.ToCompletion()
+            }
+            |?{
+                $_.ListItemText -match [regex]::escape( $WordToComplete )
             }
         )
 
         if($Script:__ModuleConfig.VerboseJson_ArgCompletions) {
             $Completions
                 | ConvertTo-Json
-                | Add-Content $Script:__ModuleConfig.VerboseJson_ArgCompletionsLog -ea 'silentlycontinue'
+                | Add-Content $Script:__ModuleConfig.VerboseJson_ArgCompletionsLog #ea 'silentlycontinue'
         }
 
         # if( $script:__ModuleConfig.PrintExtraSummaryOnTabCompletion) {
@@ -387,226 +395,25 @@ class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgument
 
 
 function Bintils.Aws.IAM.ListGroups {
+    [Alias(
+        'Aws.IAM.ListGroups'
+    )]
     param(
         [Parameter()]
+        [AwsProfileNameCompletionsAttribute()]
         $Profile
-
     )
+
 }
-
-
-# class AwsCompleter : IArgumentCompleter {
-
-#     # hidden [hashtable]$Options = @{
-#         # CompleteAs = 'Name'
-#     # }
-#     # hidden [string]$CompleteAs = 'Name'
-#     # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
-#     # AwsCompleter([int] $from, [int] $to, [int] $step) {
-#     AwsCompleter( ) {
-#         # $This.Options = @{
-#         #     # ExcludeDateTimeFormatInfoPatterns = $true
-#         #     CompleteAs = 'Name'
-#         # }
-
-#         # $this.Options
-#         #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
-#     }
-#     # AwsCompleter( $options ) {
-#     # AwsCompleter( $SomeParam = $false ) {
-#     # AwsCompleter( [string]$CompleteAs = 'Name'  ) {
-#         # $this.SomeParam = $SomeParam
-#         # $This.Options.CompleteAs = $CompleteAs
-#         # $This.CompleteAs = $CompleteAs
-#         # $this.Options
-#         #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor | SomeParam'
-
-#         # $PSCommandPath | Join-String -op 'not finished: Exclude property is not implemented yet,  ' | write-warning
-
-#         # $this.Options = $Options ?? @{}
-#         # $Options
-#             # | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
-#         # if ($from -gt $to) {
-#         #     throw [ArgumentOutOfRangeException]::new("from")
-#         # }
-#         # $this.From = $from
-#         # $this.To = $to
-#         # $this.Step = $step -lt 1 ? 1 : $step
-
-#     # }
-#     <#
-#     .example
-
-#     > try.Named.Fstr yyyy'-'MM'-'dd'T'HH':'mm':'ssZ
-#     GitHub.DateTimeOffset  ShortDate (Default)    LongDate (Default)
-
-#         Git Dto ⁞ 2023-11-11T18:58:42Z
-#         yyyy'-'MM'-'dd'T'HH':'mm':'ssZ
-#         Github DateTimeZone
-#         Github DateTimeOffset UTC
-#     #>
-
-#     [IEnumerable[CompletionResult]] CompleteArgument(
-#         [string] $CommandName,
-#         [string] $parameterName,
-#         [string] $wordToComplete,
-#         [CommandAst] $commandAst,
-#         [IDictionary] $fakeBoundParameters) {
-
-#         # [List[CompletionResult]]$resultList = @()
-#         # $DtNow = [datetime]::Now
-#         # $DtoNow = [DateTimeOffset]::Now
-#         # [bool]$NeverFilterResults = $false
-#         # $Config = @{
-#         #     # IncludeAllDateTimePatterns = $true
-#         #     # IncludeFromDateTimeFormatInfo = $true
-#         # }
-#         # todo: pass query string filter
-#         [List[CompletionResult]]$found = @(
-#                 __module.Aws.buildCompletions
-#             )
-#         return $found
-#     }
-
-# }
-
-# class AwsCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
-#     <#
-#     .example
-#         Pwsh> [AwsCompletionsAttribute]::new()
-#         Pwsh> [AwsCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
-#     #>
-#     [hashtable]$Options = @{}
-#     AwsCompletionsAttribute() {
-#         # $this.Options = @{
-#         #     CompleteAs = 'Name'
-#         # }
-#         # $this.Options
-#         #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new()'
-#     }
-#     AwsCompletionsAttribute( [string]$CompleteAs = 'Name' ) {
-#         # $this.Options.CompleteAs = $CompleteAs
-#         # $this.Options
-#         #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new | completeAs'
-#     }
-
-#     [IArgumentCompleter] Create() {
-#         # return [AwsCompleter]::new($this.From, $this.To, $this.Step)
-#         # return [AwsCompleter]::new( @{} )
-#         # '🚀AwsCompletionsAttribute..Create()'
-#         #     | WriteJsonLog -PassThru
-#             # | .Log -Passthru
-#         # $This.Options
-#         #     | WriteJsonLog -PassThru
-
-#         return [AwsCompleter]::new()
-#         # if( $This.Options.ExcludeDateTimeFormatInfoPatterns ) {
-#         #     return [AwsCompleter]::new( @{
-#         #         ExcludeDateTimeFormatInfoPatterns = $This.Options.ExcludeDateTimeFormatInfoPatterns
-#         #     } )
-#         # } else {
-#         #     return [AwsCompleter]::new()
-#         # }
-#     }
-# }
-
-# $scriptBlockNativeCompleter = {
-#     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-#     param($wordToComplete, $commandAst, $cursorPosition)
-#     [List[AwsBintilsCompletionResult]]$items = @( __module.Aws.buildCompletions )
-
-#     $FilterProp =
-#         'ListItemText' # 'CompletionText'
-#     [string]$parentName? = $commandAst.CommandElements
-#         | Select -Last 1 | % value
-
-#     $lastName = $commandAst.ToString() -split '\s+' | Select -last 1
-#     $leftWord = $commandAst.CommandElements | Select -last 1
-
-
-
-#     [List[Object]]$selected = @(
-#         $items | ?{
-#             [bool]$toKeep = (
-#                 ( $_.ParentName -match [regex]::escape( $leftWord ) ) -or
-#                     ( [string]::IsNullOrWhiteSpace( $_.ParentName ) ) -or
-#                     ( $_.ParentName -eq 'lucid' ) -or
-#                     [string]::IsNullOrWhiteSpace( $leftWord ) -or
-#                     $false
-#             )
-#             return $toKeep
-#         }
-#     )
-#         # | ?{
-#         #     $matchesAny = (
-#         #         $_.$FilterProp -match $WordToComplete -or
-#         #         $_.$FilterProp -match [regex]::escape( $WordToComplete ) -or
-#         #         # // or statically
-#         #         $_.ListItemText -match $wordToComplete -or
-#         #         $_.CompletionText -match $wordToComplete -or
-#         #         $_.ListItemText -match [regex]::escape( $wordToComplete ) -or
-#         #         $_.CompletionText -match [regex]::escape( $wordToComplete ) )
-
-#         #     return $MatchesAny
-#         # }
-
-
-#     if('based on heirarchy') {
-#         $crumbs = $commandAst.CommandElements.Value
-#     }
-
-#     if('VerboseLoggingState') {
-#         $PSStyle.OutputRendering = 'PlainText'
-
-#         @(
-#             "`n ===== Lucid native completion result ==== "
-#             get-date
-#             $PSCommandPath |Join-String -op 'source: '
-#             [ordered]@{
-#                 'Left' = $LeftWord
-#                 'Command' = $PSCommandPath
-#                 'Word' = $WordToComplete
-#                 'Cursor' = $cursorPosition
-#                 'last' = $commandAst.CommandElements[-1]
-#                 'last2' = $commandAst.CommandElements[-2]
-
-#             } | Ft -auto | out-String
-#             $commandAst | Bintils.Common.Format.CommandAst
-#             "`n"
-#             "`n"
-#             $commandAst|ft -AutoSize | Out-string
-#             $commandAst|fl | Out-string
-#             "`n"
-#         )
-#         | Add-Content -Path 'temp:\completers.log'
-#         $PSStyle.OutputRendering = 'Ansi'
-
-#     }
-#     $final_CE = [List[CompletionResult]]@( $selected.ToCompletion() ) # should declare an auto coercable  class
-#     if($final_CE.Count -eq 0){
-#         [string]$render_tooltip = @(
-#             # 'Special 0 matches found, tooltip'
-#             # Join-String -f 'Word: {0}' -in $wordToComplete
-#             # $commandAst | JOin-String -sep ', ' { $_.ToString() }
-#             # Join-String -op 'cusor pos' -In $cursorPosition
-#             'special 0 results, fallback completer'
-#         ) | Join-String -sep "`n"
-
-#         $final_CE.add(
-#             [CompletionResult]::new(
-#                 <# completionText: #> 'help',
-#                 <# listItemText: #> '--help',
-#                 <# resultType: #> [CompletionResultType]::ParameterValue,
-#                 <# toolTip: #> $render_tooltip)
-#         )
-#     }
-
-#     return $final_CE
-# }
 
 function __module.Aws.OnInit {
     param()
     'Bintils.Aws::Init' | write-verbose -Verbose
+    if( $script:__moduleConfig.VerboseJson_ArgCompletions) {
+        'Bintils.Aws::Init: Enabled Completions logging to {0}' -f @(
+            $script:__moduleConfig.VerboseJson_ArgCompletionsLog
+        ) | Write-verbose -verbose
+    }
     # gcm 'AwsCli*'
     # gcm 'Aws.*'
     # gcm -m bintils.completers.AwsCli
@@ -615,7 +422,8 @@ function __module.Aws.OnInit {
 # note: Aws.* will export if you import this module directly
 # but importing bintils itself, will not export
 export-moduleMember -function @(
-    if($__moduleConfig.ExportPrefix_Cli) {
+
+    if($__moduleConfig.ExportPrefix_Aws) {
         'Aws.*'
         'Bintils.Aws.*'
     }
@@ -624,7 +432,7 @@ export-moduleMember -function @(
         'Bintils.AwsCli.*'
     }
 ) -Alias @(
-    if($__moduleConfig.ExportPrefix_Cli) {
+    if($__moduleConfig.ExportPrefix_Aws) {
         'Aws.*'
         'Bintils.Aws.*'
     }
