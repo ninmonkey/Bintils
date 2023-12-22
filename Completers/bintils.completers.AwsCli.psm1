@@ -14,6 +14,106 @@ $script:__moduleConfig = @{
 }
 $script:awsCache = @{}
 
+function aws.Write-Information {
+    <#
+    .SYNOPSIS
+        sugar for : obj | Write-information -infa 'continue'
+    #>
+    [Alias('aws.Infa')]  ##>, 'wInfo', 'Infa', 'Write.Infa')]
+    param(
+        [switch]$WithoutInfaContinue
+    )
+    if($WithoutInfaContinue) {
+        $Input | Write-Information
+        return
+    }
+    $Input | Write-Information -infa 'continue'
+}
+function Aws.Write-DimText {
+    <#
+    .SYNOPSIS
+        # sugar for dim gray text,
+    .EXAMPLE
+        # pipes to 'less', nothing to console on close
+        get-date | Dotils.Write-DimText | less
+
+        # nothing pipes to 'less', text to console
+        get-date | Dotils.Write-DimText -PSHost | less
+    .EXAMPLE
+        > gci -Name | Dotils.Write-DimText |  Join.UL
+        > 'a'..'e' | Dotils.Write-DimText  |  Join.UL
+    #>
+    [OutputType('String')]
+    [Alias('DimText', 'aws.DimText')]
+    param(
+        # write host explicitly
+        # [switch]$PSHost
+    )
+    $ColorDefault = @{
+        ForegroundColor = '#515151' # 'gray60'
+        BackgroundColor = '#999999'  # 'gray20'
+    }
+    $renderColor = @(
+        $PSStyle.Foreground.FromRgb( $ColorDefault.ForegroundColor )
+        $PSStyle.Background.FromRgb( $ColorDefault.BackgroundColor )
+    ) -join ''
+
+    return $Input
+        | Join-String -op $renderColor -os $PSStyle.Reset
+        # | New-Text @colorDefault
+        # | % ToString
+}
+
+function Aws.InvokeBin {
+    <#
+    .SYNOPSIS
+        Actually calls the native command, and waits fora a confirm prompt. Args may come from Bv.BuildBinArgs
+    #>
+    # [Alias('Aws.InvokeBin')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
+    param(
+        [object[]]$BinArgs
+
+        # [ArgumentCompletions('aws', 'rclone')]
+        # [Alias('NativeCommandName')]
+        # [string]$CommandName = 'aws'
+    )
+    'Invoke: ' | write-verbose -Verbose
+    # "`n`n"
+    $binAws = Get-Command -CommandType Application -Name $CommandName -TotalCount 1 -ea 'stop'
+    # "`n`n"
+    $BinArgs | Aws.PreviewArgs
+    # "`n`n"
+    if ($PSCmdlet.ShouldProcess(
+        "$( $BinArgs -join ' '  )",
+        "Bv.InvokeBin: $( $CommandName )")
+    ) {
+        '   Calling "{0}"' -f @( $CommandName )
+            | write-host -fore 'green'
+
+        '   Calling "{0}"' -f @( $CommandName )
+        # '::invoke: => Confirmed'
+            | Aws.Write-DimText | Write-Information -infa 'continue'
+
+        & $BinAws @BinArgs
+    } else {
+        # '::invoke: => Skip' | Aws.Write-DimText | Write-Information -infa 'continue'
+        '   Skipped calling "{0}"' -f @( $CommandName ) | write-host -back 'darkred'
+    }
+    $BinArgs
+        | Aws.PreviewArgs
+        # | write-host -fore 'Green'
+}
+function Aws.PreviewArgs {
+    <#
+    .SYNOPSIS
+        write dim previews of the args
+    #>
+    # param( [object[]]$InputObject )
+    $Input
+    | Join-String -sep ' ' -op 'bin args => @( ' -os ' )'
+    | Aws.Write-DimText
+}
 
 
 function Bintils.Aws.BuildBinArgs {
@@ -30,15 +130,16 @@ function Bintils.Aws.BuildBinArgs {
         # template[s] to build from
         [parameter()]
         [ArgumentCompletions(
-            'aws',
-            'ProfileBdg',
             'ProfileJake',
-            's3',
-            'AutoPrompt', 'No-AutoPrompt','NoAutoPrompt',
-            'OutputYaml', 'OutputYamlStream',
-            'OutputJson',
-            'OutputText',
-            'OutputTable',
+
+            'CliAutoPrompt', 'No-CliAutoPrompt','NoCliAutoPrompt',
+
+            # outputkinds
+                'OutputYaml', 'OutputYamlStream',
+                'OutputJson',
+                'OutputText',
+                'OutputTable',
+
             'DryRun',
             'help'
         )]
@@ -56,83 +157,81 @@ function Bintils.Aws.BuildBinArgs {
         # write preview info stream
         [switch]$Preview
     )
-
+    [List[Object]]$paramTemplates = @( $Templates )
     [List[object]]$binArgs = @()
     [List[Object]]$Prefix  = @()
 
-    # initialize defaults for aws cli
+    # initialize noprompt as defaults for aws cli, because many commands break piping if enabled
+    # $defines_AutoPrompt = (@( $Templates ) -match '(No)?.*CliAutoPrompt' ).count -gt 0
+    # if( -not $defines_AutoPrompt ) { $binArgs.add( '--no-cli-auto-prompt') }
+
+    # if( -not $defines_Autoprompt) { $binArgs.AddRange(@( '--no-cli-auto-prompt')) }
+
+
+    # if( -not $Templates )
     # $prefix.AddRange(@(
     #     '--no-cli-auto-prompt'))
 
-    if($UsingWhatIf) {
-         'Invoking Using -WhatIf / --dryrun mode'
-             | write-host -fore 'yellow'
-            $prefix.AddRange(@(
-                '--dryrun'))
-    }
+    # if($UsingWhatIf) {
+    #      'Invoking Using -WhatIf / --dryrun mode'
+    #          | write-host -fore 'yellow'
+    #         $prefix.AddRange(@(
+    #             '--dryrun'))
+    # }
 
 
     switch($Templates) {
-        'aws' {
-            $prefix.AddRange(@(
-                'aws' ))
-        }
-        # 'rclone' {
-        #     $prefix.AddRange(@(
-        #         $BvAppConfig.BinRClone.FullName ))
-                # 'G:\2023-git\git_bin\rclone-v1.64.2-windows-amd64\rclone.exe' ))
-        # }
         'ProfileJake' {
-            $prefix.AddRange(@(
+            $binArgs.AddRange(@(
                 '--profile', 'jake'))
         }
-        'ProfileBdg' {
-            $prefix.AddRange(@(
-                '--profile', 'BDG'))
-        }
-        'ColorOn' {
-            $prefix.AddRange(@(
-                '--color', 'on'))
-        }
-        'ColorOff' {
-            $prefix.AddRange(@(
-                '--color', 'off'))
-        }
-        'AutoPrompt' {
-            $prefix.AddRange(@(
+        # 'ColorOn' {
+        #     $binArgs.AddRange(@(
+        #         '--color', 'on'))
+        # }
+        # 'ColorOff' {
+        #     $binArgs.AddRange(@(
+        #         '--color', 'off'))
+        # }
+        'CliAutoPrompt' {
+            $binArgs.AddRange(@(
                 '--cli-auto-prompt'))
         }
-        's3' {
-            $prefix.AddRange(@(
-                's3'))
+        'NoCliAutoPrompt' {
+            $binArgs.AddRange(@(
+                '--cli-auto-prompt'))
         }
-        'help' {
-            $prefix.AddRange(@(
-                'help'))
-        }
-        'OutputYamlStream' {
-            $prefix.AddRange(@(
-                '--output', 'yaml-stream'))
-        }
-        'OutputYaml' {
-            $prefix.AddRange(@(
-                '--output', 'yaml'))
-        }
-        'OutputJson' {
-            $prefix.AddRange(@(
-                '--output', 'json'))
-        }
-        'OutputText' {
-            $prefix.AddRange(@(
-                '--output', 'text'))
-        }
-        'OutputTable' {
-            $prefix.AddRange(@(
-                '--output', 'table'))
-        }
-        { $_ -in @('NoAutoPrompt', 'No-AutoPrompt') } {
+        # 's3' {
+        #     $prefix.AddRange(@(
+        #         's3'))
+        # }
+        # 'help' {
+        #     $prefix.AddRange(@(
+        #         'help'))
+        # }
+        # 'OutputYamlStream' {
+        #     $prefix.AddRange(@(
+        #         '--output', 'yaml-stream'))
+        # }
+        # 'OutputYaml' {
+        #     $prefix.AddRange(@(
+        #         '--output', 'yaml'))
+        # }
+        # 'OutputJson' {
+        #     $prefix.AddRange(@(
+        #         '--output', 'json'))
+        # }
+        # 'OutputText' {
+        #     $prefix.AddRange(@(
+        #         '--output', 'text'))
+        # }
+        # 'OutputTable' {
+        #     $prefix.AddRange(@(
+        #         '--output', 'table'))
+        # }
+        # { $_ -in @('NoAutoPrompt', 'No-AutoPrompt') } {
             # WithDry run, is now a no-op error
-        }
+        # }
         default {
             "Unhandled -Template name: '{0}'" -f ( $Switch -join ', ' )
             | write-error
@@ -142,18 +241,18 @@ function Bintils.Aws.BuildBinArgs {
     if($PrefixArgs.count -gt 0) {
         $binArgs.AddRange(@( $PrefixArgs))
     }
-
-    $binArgs.AddRange(@(
-        $prefix ))
-
     if($AppendArgs.count -gt 0) {
         $binArgs.AddRange(@( $AppendArgs))
     }
 
+    $defines_Autoprompt = -not $binArgs.Exists({ $_ -in @( '--no-cli-auto-prompt', '--cli-auto-prompt'  ) })
+    if( -not $defines_Autoprompt ) {
+        $binArgs.AddRange(@('--no-cli-auto-prompt'))
+    }
     # $script:Aws_LastBinArgs = $BinArgs
 
     if($Preview) {
-        $binArgs | Bv.PreviewArgs
+        $binArgs | Aws.PreviewArgs
     }
     return $binArgs
 
@@ -177,6 +276,11 @@ function Bintils.Aws.Help {
     $DocRecord.Contents = @( @"
 
 AwsVersion: $(aws --version)
+
+- [Troubleshooting docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-troubleshooting.html)
+- [cli skeleton](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-skeleton.html): Most of the AWS Command Line Interface (AWS CLI) commands accept all parameter inputs from a file. These templates can be generated using the generate-cli-skeleton option
+
+
 "@ )
     $DocRecord.Contents | Join-String -sep "`n" | Write-information -infa 'Continue'
     return [pscustomobject]$docRecord
@@ -331,21 +435,11 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
     ) {
         $state = $script:AwsCache
         [List[CompletionResult]]$Completions = @()
-        <#
-                [List[CompletionResult]]$found = @(
-                $records = @( 'BDG', 'jake')
-                    | Sort-Object -Unique | %{
-                        New.AwsCR -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
-                    }
-            ) | ?{
-                 $_.ListItemText -match $WordToComplete
-             }
-            # $found | ConvertTo-Json | Add-Content 'temp:\last.log' -ea 'continue'
-            return $found
-        #>
         if( -not ($state)?.ProfileNames ) {
-            # write-warning 'build bin args here: AwsNameCompelter'
+            # write-warning 'build bin args template args here: AwsNameCompelter'
+            $binArgs = Aws.BuildBinArgs -Templates NoCliAutoPrompt -AppendArgs 'configure', 'list-profiles'
             $state.ProfileNames = aws configure list-profiles --no-cli-auto-prompt | Sort-object -Unique
+            # $state.ProfileNames = aws configure list-profiles --no-cli-auto-prompt | Sort-object -Unique
                 # aws configure list-profiles
         }
 
