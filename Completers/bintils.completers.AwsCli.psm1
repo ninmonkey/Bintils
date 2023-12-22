@@ -14,6 +14,7 @@ $script:__moduleConfig = @{
 }
 $script:awsCache = @{}
 
+
 function aws.Write-Information {
     <#
     .SYNOPSIS
@@ -63,7 +64,20 @@ function Aws.Write-DimText {
         # | New-Text @colorDefault
         # | % ToString
 }
+[int]$script:__historyNextId = 0
 
+class HistoryRecord {
+    [datetime]$When
+    [int]$Order
+    [List[Object]]$CommandLine = @()
+    [List[Object]]$Results     = @()
+    HistoryRecord () {
+        $This.When = [Datetime]::Now
+        $this.Order = ($script:__historyNextId)++
+    }
+}
+
+[List[HistoryRecord]]$script:AwsHistory = @()
 function Aws.InvokeBin {
     <#
     .SYNOPSIS
@@ -72,7 +86,10 @@ function Aws.InvokeBin {
     # [Alias('Aws.InvokeBin')]
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact='Low')]
     param(
-        [object[]]$BinArgs
+        [object[]]$BinArgs,
+
+        # do not write to info stream, or at least not explicit
+        [switch]$Silent
 
         # [ArgumentCompletions('aws', 'rclone')]
         # [Alias('NativeCommandName')]
@@ -102,13 +119,18 @@ function Aws.InvokeBin {
             # '::invoke: => Confirmed'
                 | Aws.Write-DimText | Write-Information #-infa 'continue'
             }
-        & $BinAws @BinArgs
+        $result = & $BinAws @BinArgs
+        $history = [HistoryRecord]@{
+            Results     = $result
+            CommandLine = $BinArgs
+        }
+        $script:AwsHistory.add( $history )
     } else {
         # '::invoke: => Skip' | Aws.Write-DimText | Write-Information -infa 'continue'
         '   Skipped calling "{0}"' -f @( $CommandName ) | write-host -back 'darkred'
     }
-    $BinArgs
-        | Aws.PreviewArgs
+    if( $Silent ) { return }
+    $BinArgs | Aws.PreviewArgs
         # | write-host -fore 'Green'
 }
 function Aws.PreviewArgs {
@@ -209,14 +231,14 @@ function Bintils.Aws.BuildBinArgs {
             $binArgs.AddRange(@(
                 '--profile', 'jake'))
         }
-        # 'ColorOn' {
-        #     $binArgs.AddRange(@(
-        #         '--color', 'on'))
-        # }
-        # 'ColorOff' {
-        #     $binArgs.AddRange(@(
-        #         '--color', 'off'))
-        # }
+        'ColorOn' {
+            $binArgs.AddRange(@(
+                '--color', 'on'))
+        }
+        'ColorOff' {
+            $binArgs.AddRange(@(
+                '--color', 'off'))
+        }
         'CliAutoPrompt' {
             $binArgs.AddRange(@(
                 '--cli-auto-prompt'))
@@ -225,34 +247,26 @@ function Bintils.Aws.BuildBinArgs {
             $binArgs.AddRange(@(
                 '--no-cli-auto-prompt'))
         }
-        # 's3' {
-        #     $prefix.AddRange(@(
-        #         's3'))
-        # }
-        # 'help' {
-        #     $prefix.AddRange(@(
-        #         'help'))
-        # }
-        # 'OutputYamlStream' {
-        #     $prefix.AddRange(@(
-        #         '--output', 'yaml-stream'))
-        # }
-        # 'OutputYaml' {
-        #     $prefix.AddRange(@(
-        #         '--output', 'yaml'))
-        # }
-        # 'OutputJson' {
-        #     $prefix.AddRange(@(
-        #         '--output', 'json'))
-        # }
-        # 'OutputText' {
-        #     $prefix.AddRange(@(
-        #         '--output', 'text'))
-        # }
-        # 'OutputTable' {
-        #     $prefix.AddRange(@(
-        #         '--output', 'table'))
-        # }
+        'OutputYamlStream' {
+            $binArgs.AddRange(@(
+                '--output', 'yaml-stream'))
+        }
+        'OutputYaml' {
+            $binArgs.AddRange(@(
+                '--output', 'yaml'))
+        }
+        'OutputJson' {
+            $binArgs.AddRange(@(
+                '--output', 'json'))
+        }
+        'OutputText' {
+            $binArgs.AddRange(@(
+                '--output', 'text'))
+        }
+        'OutputTable' {
+            $binArgs.AddRange(@(
+                '--output', 'table'))
+        }
         # { $_ -in @('NoAutoPrompt', 'No-AutoPrompt') } {
             # WithDry run, is now a no-op error
         # }
@@ -270,6 +284,11 @@ function Bintils.Aws.BuildBinArgs {
     if( $BinArgs.Contains('--no-cli-auto-prompt') -and $BinArgs.Contains('--cli-auto-prompt') ) {
         throw "InvalidParametersException: Cannot use both args at once: --[no-]cli-auto-promp"
     }
+    if( $paramTemplates.Contains('ColorOn') -and $paramTemplates.Contains('ColorOn') ) {
+        throw "InvalidParametersException: Cannot use both args at once: ColorOn, ColorOff"
+    }
+
+
 
 
     # if($PrefixArgs.count -gt 0) {
@@ -292,6 +311,17 @@ function Bintils.Aws.BuildBinArgs {
     if( -not $defines_Autoprompt ) {
         $binArgs.AddRange(@('--no-cli-auto-prompt'))
     }
+
+    $outputTemplateNames = 'OutputYamlStream', 'OutputYaml', 'OutputJson', 'OutputText', 'OutputTable'
+    if( ($BinArgs.Where({$_ -in @($OutputTemplateNames) }) ).count -gt 1 ) {
+        throw ('Multiple instances of OutputFormats were used!: Templates = @( {0} )' -f @(
+            $Templates -join ', '
+        ))
+    }
+    # vaidation: future, check for parameter '--output', then get the index of the next, and see if it's valid
+    # then check if 'output' matches any cases were index previous is not --output
+
+
     # $script:Aws_LastBinArgs = $BinArgs
 
     if($Preview) {
@@ -363,6 +393,98 @@ Example invoke:
 
     > Aws.GenerateSkeleton -Commands 'iam', 'list-groups' Yaml | bat -l yaml
 
+***************
+
+The AWS CLI has a few general options:
+
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| Variable             | Option         | Config Entry          | Environment Variable  | Description                      |
++======================+================+=======================+=======================+==================================+
+| profile              | --profile      | N/A                   | AWS_PROFILE           | Default profile name             |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| region               | --region       | region                | AWS_DEFAULT_REGION    | Default AWS Region               |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| output               | --output       | output                | AWS_DEFAULT_OUTPUT    | Default output style             |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| cli_timestamp_format | N/A            | cli_timestamp_format  | N/A                   | Output format of timestamps      |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| ca_bundle            | --ca-bundle    | ca_bundle             | AWS_CA_BUNDLE         | CA Certificate Bundle            |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| parameter_validation | N/A            | parameter_validation  | N/A                   | Toggles parameter validation     |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| tcp_keepalive        | N/A            | tcp_keepalive         | N/A                   | Toggles TCP Keep-Alive           |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| max_attempts         | N/A            | max_attempts          | AWS_MAX_ATTEMPTS      | Number of total requests         |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| retry_mode           | N/A            | retry_mode            | AWS_RETRY_MODE        | Type of retries performed        |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+| cli_pager            | --no-cli-pager | cli_pager             | AWS_PAGER             | Redirect/Disable output to pager |
++----------------------+----------------+-----------------------+-----------------------+----------------------------------+
+
+Pager
+=====
+
+The AWS CLI uses a pager for output data that does not fit on the
+screen.
+
+On Linux/MacOS, "less" is used as the default pager. On Windows, the
+default is "more".
+
+
+Configuring pager
+-----------------
+
+You can override the default pager with the following configuration
+options. These are in order of precedence:
+
+* "AWS_PAGER" environment variable
+
+* "cli_pager" shared config variable
+
+* "PAGER" environment variable
+
+If you set any of the configuration options to an empty string (e.g.
+"AWS_PAGER=""") or use "--no-cli-pager" option in the command line the
+AWS CLI will not send the output to a pager.
+
+
+Examples
+~~~~~~~~
+
+To disable the pager for "default" profile:
+
+   aws configure set cli_pager "" --profile default
+
+To disable the pager for all profiles in the current terminal session:
+
+   export AWS_PAGER="" - for Linux
+
+   set AWS_PAGER="" - for Windows cmd
+
+To disable the pager for one command call:
+
+   aws <command> <sub-command> --no-cli-pager
+
+
+Pager settings
+--------------
+
+If the "LESS" environment variable is not set the AWS CLI will set it
+to "FRX" (see "less" manual page for more information about possible
+options https://man7.org/linux/man-pages/man1/less.1.html) in order to
+set the appropriate flags. If you set the "LESS" env var, we will not
+clobber it with ours (e.g. "FRX"). Be aware that different shells can
+have different default values for the "LESS" environment variable that
+can cause unexpected behavior of AWS CLI output
+
+You can also set flags when specifying the pager and those will
+combine with any environment variables we set (e.g. "AWS_PAGER="less
+-S"" will make it less "-FRXS"). The behavior of combining flags is a
+feature of "less". You can also negate flags we set by specifying it
+on the command line: (e.g. "AWS_PAGER="less -+F"" will deactivate the
+quit if one screen behavior)
+
+For Windows, "more" is used with no additional environment variables.
 
 "@ )
     $DocRecord.Contents | Join-String -sep "`n" | Write-information -infa 'Continue'
@@ -520,7 +642,7 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
         [List[CompletionResult]]$Completions = @()
         if( -not ($state)?.ProfileNames ) {
             $state.ProfileNames = Aws.InvokeBin (
-                    Aws.BuildBinArgs -Templates NoCliAutoPrompt -AppendArgs 'configure', 'list-profiles' )
+                    Aws.BuildBinArgs -Preview:$false -Templates NoCliAutoPrompt -AppendArgs 'configure', 'list-profiles' )
                         | Sort-object -Unique
 
         }
@@ -575,12 +697,47 @@ function Bintils.Aws.IAM.ListGroups {
         'Aws.IAM.ListGroups'
     )]
     param(
-        [Parameter()]
+        [Parameter(Mandatory)]
         [AwsProfileNameCompletionsAttribute()]
-        $Profile
+        $Profile,
+
+        [Alias('AsJson', 'RawJson')][switch]$PassThru
     )
-    Aws.BuildBinArgs -Templates NoCliAutoPrompt
-    aws iam list-groups --generate-cli-skeleton
+    # write-debug 'future: auto cache web requests'
+    'Profile: {0}' -f $Profile | Write-verbose
+
+    if( $PassThru) {
+        $binArgs = Aws.BuildBinArgs -Templates NoCliAutoPrompt, OutputJson -Args 'iam', 'list-groups', '--profile', $Profile
+        $response = Aws.InvokeBin -BinArgs $binArgs
+        ( $Response| COnvertFrom-Json ).Groups
+        return
+    }
+
+    $binArgs = Aws.BuildBinArgs -Templates NoCliAutoPrompt -Args 'iam', 'list-groups', '--profile', $Profile
+    $response = Aws.InvokeBin -BinArgs $binArgs
+    return $response
+    # aws iam get-user --output table
+    # aws iam list-groups --generate-cli-skeleton
+    # $json = Internal.GetCachedValue -keyName 'aws.IAM.GetGroups' -SilentError
+    # if( -not $Json ) {
+    #     $json = aws iam list-groups --no-cli-auto-prompt
+    #     Internal.SetCachedValue -keyName 'aws.IAM.GetGroups' -Value $Json
+    # # }
+    # 'aws iam list-groups --no-cli-auto-prompt'
+    #     | di.DimText | di.Infa
+
+    # $json = aws iam list-groups --profile $ProfileName --output $OutputFormat --no-cli-auto-prompt
+
+
+    # # $json = aws iam list-groups --no-cli-auto-prompt
+    # if($PassThru) { return $Json }
+
+    # if($OutputFormat -eq 'json') {
+    #     $Json | ConvertFrom-Json | % Groups
+    # } else {
+    #     $Json
+    # }
+    # return
 
 }
 
@@ -618,6 +775,9 @@ export-moduleMember -function @(
         'AwsCli.*'
         'Bintils.AwsCli.*'
     }
+) -Variable @(
+    'AwsHistory'
+    'Aws*'
 )
 
 # Register-ArgumentCompleter -CommandName 'AwsCli' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
