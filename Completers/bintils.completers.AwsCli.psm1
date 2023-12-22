@@ -70,7 +70,7 @@ function Aws.InvokeBin {
         Actually calls the native command, and waits fora a confirm prompt. Args may come from Bv.BuildBinArgs
     #>
     # [Alias('Aws.InvokeBin')]
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact='Low')]
     param(
         [object[]]$BinArgs
 
@@ -78,23 +78,30 @@ function Aws.InvokeBin {
         # [Alias('NativeCommandName')]
         # [string]$CommandName = 'aws'
     )
-    'Invoke: ' | write-verbose -Verbose
+    $Config = @{
+        VerboseOutput = $false
+    }
+    $CommandName = 'Aws'
+    if($Config.VerboseOutput) {
+        'Invoke: ' | write-verbose -Verbose
     # "`n`n"
+        $BinArgs | Aws.PreviewArgs
+    }
     $binAws = Get-Command -CommandType Application -Name $CommandName -TotalCount 1 -ea 'stop'
     # "`n`n"
-    $BinArgs | Aws.PreviewArgs
     # "`n`n"
     if ($PSCmdlet.ShouldProcess(
         "$( $BinArgs -join ' '  )",
         "Bv.InvokeBin: $( $CommandName )")
     ) {
-        '   Calling "{0}"' -f @( $CommandName )
-            | write-host -fore 'green'
+        if($Config.VerboseOutput) {
+            '   Calling "{0}"' -f @( $CommandName )
+                | write-host -fore 'green'
 
-        '   Calling "{0}"' -f @( $CommandName )
-        # '::invoke: => Confirmed'
-            | Aws.Write-DimText | Write-Information -infa 'continue'
-
+            '   Calling "{0}"' -f @( $CommandName )
+            # '::invoke: => Confirmed'
+                | Aws.Write-DimText | Write-Information #-infa 'continue'
+            }
         & $BinAws @BinArgs
     } else {
         # '::invoke: => Skip' | Aws.Write-DimText | Write-Information -infa 'continue'
@@ -111,8 +118,9 @@ function Aws.PreviewArgs {
     #>
     # param( [object[]]$InputObject )
     $Input
-    | Join-String -sep ' ' -op 'bin args => @( ' -os ' )'
-    | Aws.Write-DimText
+        | Join-String -sep ' ' -op 'bin args => @( ' -os ' )'
+        | Aws.Write-DimText
+        | aws.Infa
 }
 
 
@@ -120,6 +128,8 @@ function Bintils.Aws.BuildBinArgs {
     <#
     .SYNOPSIS
         Builds arguments for native commands, by composing template names
+    .example
+        Aws.InvokeBin -BinArgs ( Aws.BuildBinArgs -Templates NoCliAutoPrompt, SkeletonYaml -PrefixArgs 'iam')
     #>
     [Alias(
         'AwsCli.BuildBinArgs',
@@ -128,11 +138,12 @@ function Bintils.Aws.BuildBinArgs {
     [CmdletBinding()]
     param(
         # template[s] to build from
+        # future: this would auto complete based on metadata
         [parameter()]
         [ArgumentCompletions(
             'ProfileJake',
-
             'CliAutoPrompt', 'No-CliAutoPrompt','NoCliAutoPrompt',
+            'Skeleton', 'SkeletonYaml',
 
             # outputkinds
                 'OutputYaml', 'OutputYamlStream',
@@ -148,6 +159,8 @@ function Bintils.Aws.BuildBinArgs {
 
         [Alias('Prefix')]
         [object[]]$PrefixArgs,
+
+        [Alias('Args', 'ArgList')]
         [Alias('Suffix')]
         [object[]]$AppendArgs,
 
@@ -159,7 +172,7 @@ function Bintils.Aws.BuildBinArgs {
     )
     [List[Object]]$paramTemplates = @( $Templates )
     [List[object]]$binArgs = @()
-    [List[Object]]$Prefix  = @()
+    [List[Object]]$PrefixArgs = @( $PrefixArgs)
 
     # initialize noprompt as defaults for aws cli, because many commands break piping if enabled
     # $defines_AutoPrompt = (@( $Templates ) -match '(No)?.*CliAutoPrompt' ).count -gt 0
@@ -180,7 +193,18 @@ function Bintils.Aws.BuildBinArgs {
     # }
 
 
+
     switch($Templates) {
+        'Skeleton' {
+            $binArgs.AddRange(@(
+                '--generate-cli-skeleton'
+            ))
+        }
+        'SkeletonYaml' {
+            $binArgs.AddRange(@(
+                '--generate-cli-skeleton', 'yaml-input'
+            ))
+        }
         'ProfileJake' {
             $binArgs.AddRange(@(
                 '--profile', 'jake'))
@@ -199,7 +223,7 @@ function Bintils.Aws.BuildBinArgs {
         }
         'NoCliAutoPrompt' {
             $binArgs.AddRange(@(
-                '--cli-auto-prompt'))
+                '--no-cli-auto-prompt'))
         }
         # 's3' {
         #     $prefix.AddRange(@(
@@ -232,19 +256,38 @@ function Bintils.Aws.BuildBinArgs {
         # { $_ -in @('NoAutoPrompt', 'No-AutoPrompt') } {
             # WithDry run, is now a no-op error
         # }
+        '' {
+            if (-not $PSBoundParameters.ContainsKey( 'Template' ) ) { continue }
+            write-warning 'blankable template passed'
+        }
         default {
             "Unhandled -Template name: '{0}'" -f ( $Switch -join ', ' )
             | write-error
             continue
         }
     }
-    if($PrefixArgs.count -gt 0) {
-        $binArgs.AddRange(@( $PrefixArgs))
-    }
-    if($AppendArgs.count -gt 0) {
-        $binArgs.AddRange(@( $AppendArgs))
+
+    if( $BinArgs.Contains('--no-cli-auto-prompt') -and $BinArgs.Contains('--cli-auto-prompt') ) {
+        throw "InvalidParametersException: Cannot use both args at once: --[no-]cli-auto-promp"
     }
 
+
+    # if($PrefixArgs.count -gt 0) {
+    #     $binArgs = @(
+    #         $PrefixArgs
+    #         $BinArgs
+    #     )
+    #     $binArgs.AddRange(@( $PrefixArgs))
+    # }
+    # if($AppendArgs.count -gt 0) {
+    #     $binArgs.AddRange(@( $AppendArgs))
+    # }
+
+    $binArgs = @(
+        $PrefixArgs
+        $BinArgs
+        $AppendArgs
+    )
     $defines_Autoprompt = -not $binArgs.Exists({ $_ -in @( '--no-cli-auto-prompt', '--cli-auto-prompt'  ) })
     if( -not $defines_Autoprompt ) {
         $binArgs.AddRange(@('--no-cli-auto-prompt'))
@@ -265,7 +308,43 @@ function Bintils.Aws.BuildBinArgs {
     # $binArgs.AddRange(@(
     #     'ls' ))
 }
+function Bintils.Aws.GenerateSkeleton {
+    <#
+    .SYNOPSIS
+    .EXAMPLE
+        # original
+        aws iam list-groups --no-cli-auto-prompt --generate-cli-skeleton
+    .EXAMPLE
+        Aws.GenerateSkeleton -Commands 'iam', 'list-groups' Yaml
+        Aws.GenerateSkeleton -Commands 'iam', 'list-groups' Json
+    .EXAMPLE
+        Aws.GenerateSkeleton -Commands 'iam', 'list-groups' Json -PageColor
 
+    #>
+    [Alias('Aws.GenerateSkeleton')]
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Commands,
+
+        [Parameter()]
+        [ArgumentCompletions('Json', 'Yaml')]
+        [string]$Format = 'Json',
+
+        [Alias('PassThru', 'NoColor')]
+        [switch]$WithoutColor
+    )
+    if($Format -eq 'Yaml') {
+        $binArgs = Bintils.Aws.BuildBinArgs -Templates NoCliAutoPrompt, SkeletonYaml -PrefixArgs $Commands -Preview:$false
+    } else {
+        $binArgs = Bintils.Aws.BuildBinArgs -Templates NoCliAutoPrompt, Skeleton -PrefixArgs $Commands -Preview:$false
+    }
+    if( $WithoutColor ) {
+        Aws.InvokeBin -binArgs $BinArgs
+        return
+    }
+    $lang = $Format -eq 'Json' ? 'json' : 'yml'
+    Aws.InvokeBin -binArgs $BinArgs | bat --language $Lang --force-colorization
+}
 function Bintils.Aws.Help {
     [Alias('Aws.Help')]
     [CmdletBinding()]
@@ -279,6 +358,10 @@ AwsVersion: $(aws --version)
 
 - [Troubleshooting docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-troubleshooting.html)
 - [cli skeleton](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-skeleton.html): Most of the AWS Command Line Interface (AWS CLI) commands accept all parameter inputs from a file. These templates can be generated using the generate-cli-skeleton option
+
+Example invoke:
+
+    > Aws.GenerateSkeleton -Commands 'iam', 'list-groups' Yaml | bat -l yaml
 
 
 "@ )
@@ -436,11 +519,10 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
         $state = $script:AwsCache
         [List[CompletionResult]]$Completions = @()
         if( -not ($state)?.ProfileNames ) {
-            # write-warning 'build bin args template args here: AwsNameCompelter'
-            $binArgs = Aws.BuildBinArgs -Templates NoCliAutoPrompt -AppendArgs 'configure', 'list-profiles'
-            $state.ProfileNames = aws configure list-profiles --no-cli-auto-prompt | Sort-object -Unique
-            # $state.ProfileNames = aws configure list-profiles --no-cli-auto-prompt | Sort-object -Unique
-                # aws configure list-profiles
+            $state.ProfileNames = Aws.InvokeBin (
+                    Aws.BuildBinArgs -Templates NoCliAutoPrompt -AppendArgs 'configure', 'list-profiles' )
+                        | Sort-object -Unique
+
         }
 
         $Completions = @(
@@ -497,6 +579,8 @@ function Bintils.Aws.IAM.ListGroups {
         [AwsProfileNameCompletionsAttribute()]
         $Profile
     )
+    Aws.BuildBinArgs -Templates NoCliAutoPrompt
+    aws iam list-groups --generate-cli-skeleton
 
 }
 
