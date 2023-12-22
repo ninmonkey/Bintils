@@ -10,6 +10,7 @@ $script:__moduleConfig = @{
     ExportPrefix_AwsCli = $true # export names that match: 'AwsCli.*'
     ExportPrefix_Aws = $true     # export names that match: 'Aws.*'
 }
+$script:awsCache = @{}
 
 function Bintils.Aws.BuildBinArgs {
     <#
@@ -328,18 +329,22 @@ class AwsProfileNameCompleter : IArgumentCompleter {
         [IDictionary] $fakeBoundParameters) {
 
         [List[CompletionResult]]$found = @(
-                $records = lucid log --list --json
-                    | ConvertFrom-Json -AsHashtable
-                    | % Keys | Sort-Object -Unique | %{
-                        New.Cr -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "mode here"
+                $records = @( 'BDG', 'jake')
+                    | Sort-Object -Unique | %{
+                        New.Cr -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
                     }
+                # $records = lucid log --list --json
+                #     | ConvertFrom-Json -AsHashtable
+                #     | % Keys | Sort-Object -Unique | %{
+                #         New.Cr -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "mode here"
+                #     }
 
                 # (Bintils.Aws.Parse.Logs -AsObject -infa Ignore).Keys | Sort-Object -Unique
                 # | ?{ $_ -match $wordToComplete }
             ) | ?{
                  $_.ListItemText -match $WordToComplete
              }
-        $found | ConvertTo-Json | Add-Content 'temp:\last.log' -ea 'continue'
+        # $found | ConvertTo-Json | Add-Content 'temp:\last.log' -ea 'continue'
         return $found
     }
 }
@@ -357,215 +362,214 @@ class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgument
     }
 }
 
+# class AwsCompleter : IArgumentCompleter {
 
-class AwsCompleter : IArgumentCompleter {
+#     # hidden [hashtable]$Options = @{
+#         # CompleteAs = 'Name'
+#     # }
+#     # hidden [string]$CompleteAs = 'Name'
+#     # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
+#     # AwsCompleter([int] $from, [int] $to, [int] $step) {
+#     AwsCompleter( ) {
+#         # $This.Options = @{
+#         #     # ExcludeDateTimeFormatInfoPatterns = $true
+#         #     CompleteAs = 'Name'
+#         # }
 
-    # hidden [hashtable]$Options = @{
-        # CompleteAs = 'Name'
-    # }
-    # hidden [string]$CompleteAs = 'Name'
-    # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
-    # AwsCompleter([int] $from, [int] $to, [int] $step) {
-    AwsCompleter( ) {
-        # $This.Options = @{
-        #     # ExcludeDateTimeFormatInfoPatterns = $true
-        #     CompleteAs = 'Name'
-        # }
+#         # $this.Options
+#         #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
+#     }
+#     # AwsCompleter( $options ) {
+#     # AwsCompleter( $SomeParam = $false ) {
+#     # AwsCompleter( [string]$CompleteAs = 'Name'  ) {
+#         # $this.SomeParam = $SomeParam
+#         # $This.Options.CompleteAs = $CompleteAs
+#         # $This.CompleteAs = $CompleteAs
+#         # $this.Options
+#         #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor | SomeParam'
 
-        # $this.Options
-        #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
-    }
-    # AwsCompleter( $options ) {
-    # AwsCompleter( $SomeParam = $false ) {
-    # AwsCompleter( [string]$CompleteAs = 'Name'  ) {
-        # $this.SomeParam = $SomeParam
-        # $This.Options.CompleteAs = $CompleteAs
-        # $This.CompleteAs = $CompleteAs
-        # $this.Options
-        #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor | SomeParam'
+#         # $PSCommandPath | Join-String -op 'not finished: Exclude property is not implemented yet,  ' | write-warning
 
-        # $PSCommandPath | Join-String -op 'not finished: Exclude property is not implemented yet,  ' | write-warning
+#         # $this.Options = $Options ?? @{}
+#         # $Options
+#             # | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
+#         # if ($from -gt $to) {
+#         #     throw [ArgumentOutOfRangeException]::new("from")
+#         # }
+#         # $this.From = $from
+#         # $this.To = $to
+#         # $this.Step = $step -lt 1 ? 1 : $step
 
-        # $this.Options = $Options ?? @{}
-        # $Options
-            # | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
-        # if ($from -gt $to) {
-        #     throw [ArgumentOutOfRangeException]::new("from")
-        # }
-        # $this.From = $from
-        # $this.To = $to
-        # $this.Step = $step -lt 1 ? 1 : $step
+#     # }
+#     <#
+#     .example
 
-    # }
-    <#
-    .example
+#     > try.Named.Fstr yyyy'-'MM'-'dd'T'HH':'mm':'ssZ
+#     GitHub.DateTimeOffset  ShortDate (Default)    LongDate (Default)
 
-    > try.Named.Fstr yyyy'-'MM'-'dd'T'HH':'mm':'ssZ
-    GitHub.DateTimeOffset  ShortDate (Default)    LongDate (Default)
+#         Git Dto ⁞ 2023-11-11T18:58:42Z
+#         yyyy'-'MM'-'dd'T'HH':'mm':'ssZ
+#         Github DateTimeZone
+#         Github DateTimeOffset UTC
+#     #>
 
-        Git Dto ⁞ 2023-11-11T18:58:42Z
-        yyyy'-'MM'-'dd'T'HH':'mm':'ssZ
-        Github DateTimeZone
-        Github DateTimeOffset UTC
-    #>
+#     [IEnumerable[CompletionResult]] CompleteArgument(
+#         [string] $CommandName,
+#         [string] $parameterName,
+#         [string] $wordToComplete,
+#         [CommandAst] $commandAst,
+#         [IDictionary] $fakeBoundParameters) {
 
-    [IEnumerable[CompletionResult]] CompleteArgument(
-        [string] $CommandName,
-        [string] $parameterName,
-        [string] $wordToComplete,
-        [CommandAst] $commandAst,
-        [IDictionary] $fakeBoundParameters) {
+#         # [List[CompletionResult]]$resultList = @()
+#         # $DtNow = [datetime]::Now
+#         # $DtoNow = [DateTimeOffset]::Now
+#         # [bool]$NeverFilterResults = $false
+#         # $Config = @{
+#         #     # IncludeAllDateTimePatterns = $true
+#         #     # IncludeFromDateTimeFormatInfo = $true
+#         # }
+#         # todo: pass query string filter
+#         [List[CompletionResult]]$found = @(
+#                 __module.Aws.buildCompletions
+#             )
+#         return $found
+#     }
 
-        # [List[CompletionResult]]$resultList = @()
-        # $DtNow = [datetime]::Now
-        # $DtoNow = [DateTimeOffset]::Now
-        # [bool]$NeverFilterResults = $false
-        # $Config = @{
-        #     # IncludeAllDateTimePatterns = $true
-        #     # IncludeFromDateTimeFormatInfo = $true
-        # }
-        # todo: pass query string filter
-        [List[CompletionResult]]$found = @(
-                __module.Aws.buildCompletions
-            )
-        return $found
-    }
+# }
 
-}
+# class AwsCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
+#     <#
+#     .example
+#         Pwsh> [AwsCompletionsAttribute]::new()
+#         Pwsh> [AwsCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
+#     #>
+#     [hashtable]$Options = @{}
+#     AwsCompletionsAttribute() {
+#         # $this.Options = @{
+#         #     CompleteAs = 'Name'
+#         # }
+#         # $this.Options
+#         #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new()'
+#     }
+#     AwsCompletionsAttribute( [string]$CompleteAs = 'Name' ) {
+#         # $this.Options.CompleteAs = $CompleteAs
+#         # $this.Options
+#         #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new | completeAs'
+#     }
 
-class AwsCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
-    <#
-    .example
-        Pwsh> [AwsCompletionsAttribute]::new()
-        Pwsh> [AwsCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
-    #>
-    [hashtable]$Options = @{}
-    AwsCompletionsAttribute() {
-        # $this.Options = @{
-        #     CompleteAs = 'Name'
-        # }
-        # $this.Options
-        #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new()'
-    }
-    AwsCompletionsAttribute( [string]$CompleteAs = 'Name' ) {
-        # $this.Options.CompleteAs = $CompleteAs
-        # $this.Options
-        #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new | completeAs'
-    }
+#     [IArgumentCompleter] Create() {
+#         # return [AwsCompleter]::new($this.From, $this.To, $this.Step)
+#         # return [AwsCompleter]::new( @{} )
+#         # '🚀AwsCompletionsAttribute..Create()'
+#         #     | WriteJsonLog -PassThru
+#             # | .Log -Passthru
+#         # $This.Options
+#         #     | WriteJsonLog -PassThru
 
-    [IArgumentCompleter] Create() {
-        # return [AwsCompleter]::new($this.From, $this.To, $this.Step)
-        # return [AwsCompleter]::new( @{} )
-        # '🚀AwsCompletionsAttribute..Create()'
-        #     | WriteJsonLog -PassThru
-            # | .Log -Passthru
-        # $This.Options
-        #     | WriteJsonLog -PassThru
+#         return [AwsCompleter]::new()
+#         # if( $This.Options.ExcludeDateTimeFormatInfoPatterns ) {
+#         #     return [AwsCompleter]::new( @{
+#         #         ExcludeDateTimeFormatInfoPatterns = $This.Options.ExcludeDateTimeFormatInfoPatterns
+#         #     } )
+#         # } else {
+#         #     return [AwsCompleter]::new()
+#         # }
+#     }
+# }
 
-        return [AwsCompleter]::new()
-        # if( $This.Options.ExcludeDateTimeFormatInfoPatterns ) {
-        #     return [AwsCompleter]::new( @{
-        #         ExcludeDateTimeFormatInfoPatterns = $This.Options.ExcludeDateTimeFormatInfoPatterns
-        #     } )
-        # } else {
-        #     return [AwsCompleter]::new()
-        # }
-    }
-}
+# $scriptBlockNativeCompleter = {
+#     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+#     param($wordToComplete, $commandAst, $cursorPosition)
+#     [List[AwsBintilsCompletionResult]]$items = @( __module.Aws.buildCompletions )
 
-$scriptBlockNativeCompleter = {
-    # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-    param($wordToComplete, $commandAst, $cursorPosition)
-    [List[AwsBintilsCompletionResult]]$items = @( __module.Aws.buildCompletions )
+#     $FilterProp =
+#         'ListItemText' # 'CompletionText'
+#     [string]$parentName? = $commandAst.CommandElements
+#         | Select -Last 1 | % value
 
-    $FilterProp =
-        'ListItemText' # 'CompletionText'
-    [string]$parentName? = $commandAst.CommandElements
-        | Select -Last 1 | % value
-
-    $lastName = $commandAst.ToString() -split '\s+' | Select -last 1
-    $leftWord = $commandAst.CommandElements | Select -last 1
-
+#     $lastName = $commandAst.ToString() -split '\s+' | Select -last 1
+#     $leftWord = $commandAst.CommandElements | Select -last 1
 
 
-    [List[Object]]$selected = @(
-        $items | ?{
-            [bool]$toKeep = (
-                ( $_.ParentName -match [regex]::escape( $leftWord ) ) -or
-                    ( [string]::IsNullOrWhiteSpace( $_.ParentName ) ) -or
-                    ( $_.ParentName -eq 'lucid' ) -or
-                    [string]::IsNullOrWhiteSpace( $leftWord ) -or
-                    $false
-            )
-            return $toKeep
-        }
-    )
-        # | ?{
-        #     $matchesAny = (
-        #         $_.$FilterProp -match $WordToComplete -or
-        #         $_.$FilterProp -match [regex]::escape( $WordToComplete ) -or
-        #         # // or statically
-        #         $_.ListItemText -match $wordToComplete -or
-        #         $_.CompletionText -match $wordToComplete -or
-        #         $_.ListItemText -match [regex]::escape( $wordToComplete ) -or
-        #         $_.CompletionText -match [regex]::escape( $wordToComplete ) )
 
-        #     return $MatchesAny
-        # }
+#     [List[Object]]$selected = @(
+#         $items | ?{
+#             [bool]$toKeep = (
+#                 ( $_.ParentName -match [regex]::escape( $leftWord ) ) -or
+#                     ( [string]::IsNullOrWhiteSpace( $_.ParentName ) ) -or
+#                     ( $_.ParentName -eq 'lucid' ) -or
+#                     [string]::IsNullOrWhiteSpace( $leftWord ) -or
+#                     $false
+#             )
+#             return $toKeep
+#         }
+#     )
+#         # | ?{
+#         #     $matchesAny = (
+#         #         $_.$FilterProp -match $WordToComplete -or
+#         #         $_.$FilterProp -match [regex]::escape( $WordToComplete ) -or
+#         #         # // or statically
+#         #         $_.ListItemText -match $wordToComplete -or
+#         #         $_.CompletionText -match $wordToComplete -or
+#         #         $_.ListItemText -match [regex]::escape( $wordToComplete ) -or
+#         #         $_.CompletionText -match [regex]::escape( $wordToComplete ) )
+
+#         #     return $MatchesAny
+#         # }
 
 
-    if('based on heirarchy') {
-        $crumbs = $commandAst.CommandElements.Value
-    }
+#     if('based on heirarchy') {
+#         $crumbs = $commandAst.CommandElements.Value
+#     }
 
-    if('VerboseLoggingState') {
-        $PSStyle.OutputRendering = 'PlainText'
+#     if('VerboseLoggingState') {
+#         $PSStyle.OutputRendering = 'PlainText'
 
-        @(
-            "`n ===== Lucid native completion result ==== "
-            get-date
-            $PSCommandPath |Join-String -op 'source: '
-            [ordered]@{
-                'Left' = $LeftWord
-                'Command' = $PSCommandPath
-                'Word' = $WordToComplete
-                'Cursor' = $cursorPosition
-                'last' = $commandAst.CommandElements[-1]
-                'last2' = $commandAst.CommandElements[-2]
+#         @(
+#             "`n ===== Lucid native completion result ==== "
+#             get-date
+#             $PSCommandPath |Join-String -op 'source: '
+#             [ordered]@{
+#                 'Left' = $LeftWord
+#                 'Command' = $PSCommandPath
+#                 'Word' = $WordToComplete
+#                 'Cursor' = $cursorPosition
+#                 'last' = $commandAst.CommandElements[-1]
+#                 'last2' = $commandAst.CommandElements[-2]
 
-            } | Ft -auto | out-String
-            $commandAst | Bintils.Common.Format.CommandAst
-            "`n"
-            "`n"
-            $commandAst|ft -AutoSize | Out-string
-            $commandAst|fl | Out-string
-            "`n"
-        )
-        | Add-Content -Path 'temp:\completers.log'
-        $PSStyle.OutputRendering = 'Ansi'
+#             } | Ft -auto | out-String
+#             $commandAst | Bintils.Common.Format.CommandAst
+#             "`n"
+#             "`n"
+#             $commandAst|ft -AutoSize | Out-string
+#             $commandAst|fl | Out-string
+#             "`n"
+#         )
+#         | Add-Content -Path 'temp:\completers.log'
+#         $PSStyle.OutputRendering = 'Ansi'
 
-    }
-    $final_CE = [List[CompletionResult]]@( $selected.ToCompletion() ) # should declare an auto coercable  class
-    if($final_CE.Count -eq 0){
-        [string]$render_tooltip = @(
-            # 'Special 0 matches found, tooltip'
-            # Join-String -f 'Word: {0}' -in $wordToComplete
-            # $commandAst | JOin-String -sep ', ' { $_.ToString() }
-            # Join-String -op 'cusor pos' -In $cursorPosition
-            'special 0 results, fallback completer'
-        ) | Join-String -sep "`n"
+#     }
+#     $final_CE = [List[CompletionResult]]@( $selected.ToCompletion() ) # should declare an auto coercable  class
+#     if($final_CE.Count -eq 0){
+#         [string]$render_tooltip = @(
+#             # 'Special 0 matches found, tooltip'
+#             # Join-String -f 'Word: {0}' -in $wordToComplete
+#             # $commandAst | JOin-String -sep ', ' { $_.ToString() }
+#             # Join-String -op 'cusor pos' -In $cursorPosition
+#             'special 0 results, fallback completer'
+#         ) | Join-String -sep "`n"
 
-        $final_CE.add(
-            [CompletionResult]::new(
-                <# completionText: #> 'help',
-                <# listItemText: #> '--help',
-                <# resultType: #> [CompletionResultType]::ParameterValue,
-                <# toolTip: #> $render_tooltip)
-        )
-    }
+#         $final_CE.add(
+#             [CompletionResult]::new(
+#                 <# completionText: #> 'help',
+#                 <# listItemText: #> '--help',
+#                 <# resultType: #> [CompletionResultType]::ParameterValue,
+#                 <# toolTip: #> $render_tooltip)
+#         )
+#     }
 
-    return $final_CE
-}
+#     return $final_CE
+# }
 function __module.Aws.OnInit {
     param()
     'Bintils.Aws::Init' | write-verbose -Verbose
@@ -596,6 +600,6 @@ export-moduleMember -function @(
     }
 )
 
-Register-ArgumentCompleter -CommandName 'AwsCli' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
+# Register-ArgumentCompleter -CommandName 'AwsCli' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
 
 __module.Aws.OnInit
