@@ -9,6 +9,8 @@ using namespace System.Collections.ObjectModel
 $script:__moduleConfig = @{
     ExportPrefix_AwsCli = $true # export names that match: 'AwsCli.*'
     ExportPrefix_Aws = $true     # export names that match: 'Aws.*'
+    VerboseJson_ArgCompletions = $true
+    VerboseJson_ArgCompletionsLog = (Join-Path (gi 'temp:\') 'Bintils.Aws.ArgCompletions.log')
 }
 $script:awsCache = @{}
 
@@ -313,14 +315,14 @@ function __module.AwsCli.buildCompletions {
     | Sort-Object 'CompletionText' -Unique
     | __SortIt.WithoutPrefix 'ListItemText'
 }
-class AwsProfileNameCompleter : IArgumentCompleter {
+class AwsProfileTemplateFactoryNameCompleter : IArgumentCompleter {
     # hidden [hashtable]$Options = @{
         # CompleteAs = 'Name'
     # }
     # hidden [string]$CompleteAs = 'Name'
     # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
-    # AwsProfileNameCompleter([int] $from, [int] $to, [int] $step) {
-    AwsProfileNameCompleter( ) { }
+    # AwsProfileTemplateFactoryNameCompleter([int] $from, [int] $to, [int] $step) {
+    AwsProfileTemplateFactoryNameCompleter( ) { }
     [IEnumerable[CompletionResult]] CompleteArgument(
         [string] $CommandName,
         [string] $parameterName,
@@ -331,16 +333,8 @@ class AwsProfileNameCompleter : IArgumentCompleter {
         [List[CompletionResult]]$found = @(
                 $records = @( 'BDG', 'jake')
                     | Sort-Object -Unique | %{
-                        New.Cr -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
+                        New.AwsCR -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
                     }
-                # $records = lucid log --list --json
-                #     | ConvertFrom-Json -AsHashtable
-                #     | % Keys | Sort-Object -Unique | %{
-                #         New.Cr -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "mode here"
-                #     }
-
-                # (Bintils.Aws.Parse.Logs -AsObject -infa Ignore).Keys | Sort-Object -Unique
-                # | ?{ $_ -match $wordToComplete }
             ) | ?{
                  $_.ListItemText -match $WordToComplete
              }
@@ -348,19 +342,84 @@ class AwsProfileNameCompleter : IArgumentCompleter {
         return $found
     }
 }
-class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
+class AwsProfileNameArgumentCompleter : IArgumentCompleter {
     <#
-    .example
-        Pwsh> [AwsProfileNameCompletionsAttribute]::new()
-        Pwsh> [AwsProfileNameCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
+        it supports names with spaces
     #>
-    [hashtable]$Options = @{}
-    AwsProfileNameCompletionsAttribute() { }
+    [IEnumerable[CompletionResult]] CompleteArgument(
+        [string] $CommandName,
+        [string] $ParameterName,
+        [string] $WordToComplete,
+        [CommandAst] $CommandAst,
+        [IDictionary] $FakeBoundParameters
+    ) {
+        $state = $script:AwsCache
+        [List[CompletionResult]]$Completions = @()
+        <#
+                [List[CompletionResult]]$found = @(
+                $records = @( 'BDG', 'jake')
+                    | Sort-Object -Unique | %{
+                        New.AwsCR -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
+                    }
+            ) | ?{
+                 $_.ListItemText -match $WordToComplete
+             }
+            # $found | ConvertTo-Json | Add-Content 'temp:\last.log' -ea 'continue'
+            return $found
+        #>
+        if( -not ($state)?.ProfileNames ) {
+            $state.ProfileNames = aws configure list-profiles  | Sort-object -Unique
+        }
 
-    [IArgumentCompleter] Create() {
-        return [AwsProfileNameCompleter]::new()
+        $Completions = @(
+            $state.ProfileNames | %{
+                $Item         = $_
+                $toMatch      = $_
+                $toCompleteAs = $Item # Bintils.WhenContainsSpaces-FormatQuotes -Text $Item
+
+                New.AwsCR -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
+            }
+        )
+
+        if($Script:__ModuleConfig.VerboseJson_ArgCompletions) {
+            $Completions
+                | ConvertTo-Json
+                | Add-Content $Script:__ModuleConfig.VerboseJson_ArgCompletionsLog -ea 'silentlycontinue'
+        }
+
+        # if( $script:__ModuleConfig.PrintExtraSummaryOnTabCompletion) {
+        #     "`n" | write-host
+        #     $Completions
+        #         | format-table | out-string
+        #         | write-host  #-bg $Script:Color.DimPurple
+        #     "`n" | write-host
+        # }
+        return $Completions
     }
 }
+class AwsProfileTemplateFactoryNameCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
+    <#
+    .example
+        Pwsh> [AwsProfileTemplateFactoryNameCompletionsAttribute]::new()
+        Pwsh> [AwsProfileTemplateFactoryNameCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
+    #>
+    [hashtable]$Options = @{}
+    AwsProfileTemplateFactoryNameCompletionsAttribute() { }
+
+    [IArgumentCompleter] Create() {
+        return [AwsProfileTemplateFactoryNameCompleter]::new()
+    }
+}
+
+
+function Bintils.Aws.IAM.ListGroups {
+    param(
+        [Parameter()]
+        $Profile
+
+    )
+}
+
 
 # class AwsCompleter : IArgumentCompleter {
 
@@ -570,6 +629,7 @@ class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgument
 
 #     return $final_CE
 # }
+
 function __module.Aws.OnInit {
     param()
     'Bintils.Aws::Init' | write-verbose -Verbose
