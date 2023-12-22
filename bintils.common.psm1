@@ -202,6 +202,33 @@ function Bintils.Common.Format.Whitespace {
 }
 
 
+function Bintils.Common.Format.WhenContainsSpaces-FormatQuotes {
+    <#
+    .SYNOPSIS
+        useful if you want to quote only when spaces exist
+    #>
+    [Alias(
+        'Bintils.WhenContainsSpaces-FormatQuotes'
+    )]
+        param(
+            [string]$Text,
+            [switch]$DoubleQuote
+        )
+        $hasSpaces = $Text -match ' '
+        $hasSingle = $Text -match "[']+"
+        $hasDouble = $Text -match '["]+'
+
+        $splat = @{}
+        if($DoubleQuote) {
+            $splat.DoubleQuote = $True
+        } else {
+            $splat.SingleQuote = $True
+        }
+
+        $hasSpaces ? (
+            Join-String -in $Text @splat
+        ) : $Text
+}
 function Bintils.Common.Parse.Filter-FirstNonBlank {
     <#
     .synopsis
@@ -965,6 +992,8 @@ function Bintils.Common.Config.Get {
     'or edit $script:BC_AppConfig' | write-host -back 'blue'
     return $script:BC_AppConfig
 }
+
+
 
 Export-ModuleMember -Function @(
     'Bintils.*'
