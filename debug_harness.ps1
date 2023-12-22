@@ -27,12 +27,9 @@
 
 
 
-
-
-
-
-
 'early exit, future wip afterward "{0}:99999"' -f $PSCommandPath | Write-verbose -verbose
+'early exit, future wip afterward "{0}:99999"' -f @( gi 'H:\data\2023\pwsh\PsModules\Bintils\bintils.refactor.ps1' ) | Write-verbose -verbose
+
 return
 [Microsoft.PowerShell.Commands.PSPropertyExpression]
 $found = (get-date).psobject.properties.where({ $_.name -match 'year' })

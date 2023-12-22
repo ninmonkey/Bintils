@@ -7,10 +7,162 @@ using namespace System.Collections.ObjectModel
 # [Collections.ObjectModel.ReadOnlyCollection[CommandElementAst]]
 
 $script:__moduleConfig = @{
-
+    ExportPrefix_AwsCli = $false # export names that match: 'AwsCli.*'
+    ExportPrefix_Aws = $true     # export names that match: 'Aws.*'
 }
 
-function Bintils.AwsCli.Help {
+function Bintils.Aws.BuildBinArgs {
+    <#
+    .SYNOPSIS
+        Builds arguments for native commands, by composing template names
+    #>
+    [Alias(
+        'AwsCli.BuildBinArgs',
+        'Aws.BuildBinArgs'
+    )]
+    [CmdletBinding()]
+    param(
+        # template[s] to build from
+        [parameter()]
+        [ArgumentCompletions(
+            'aws',
+            'ProfileBdg',
+            'ProfileJake',
+            's3',
+            'AutoPrompt', 'No-AutoPrompt','NoAutoPrompt',
+            'OutputYaml', 'OutputYamlStream',
+            'OutputJson',
+            'OutputText',
+            'OutputTable',
+            'DryRun',
+            'help'
+        )]
+        [Alias('BaseTemplate')]
+        [string[]]$Templates,
+
+        [Alias('Prefix')]
+        [object[]]$PrefixArgs,
+        [Alias('Suffix')]
+        [object[]]$AppendArgs,
+
+        # [Alias('WhatIf')]
+        # [switch]$DryRun,
+
+        # write preview info stream
+        [switch]$Preview
+    )
+
+    [List[object]]$binArgs = @()
+    [List[Object]]$Prefix  = @()
+
+    # initialize defaults for aws cli
+    # $prefix.AddRange(@(
+    #     '--no-cli-auto-prompt'))
+
+    if($UsingWhatIf) {
+         'Invoking Using -WhatIf / --dryrun mode'
+             | write-host -fore 'yellow'
+            $prefix.AddRange(@(
+                '--dryrun'))
+    }
+
+
+    switch($Templates) {
+        'aws' {
+            $prefix.AddRange(@(
+                'aws' ))
+        }
+        # 'rclone' {
+        #     $prefix.AddRange(@(
+        #         $BvAppConfig.BinRClone.FullName ))
+                # 'G:\2023-git\git_bin\rclone-v1.64.2-windows-amd64\rclone.exe' ))
+        # }
+        'ProfileJake' {
+            $prefix.AddRange(@(
+                '--profile', 'jake'))
+        }
+        'ProfileBdg' {
+            $prefix.AddRange(@(
+                '--profile', 'BDG'))
+        }
+        'ColorOn' {
+            $prefix.AddRange(@(
+                '--color', 'on'))
+        }
+        'ColorOff' {
+            $prefix.AddRange(@(
+                '--color', 'off'))
+        }
+        'AutoPrompt' {
+            $prefix.AddRange(@(
+                '--cli-auto-prompt'))
+        }
+        's3' {
+            $prefix.AddRange(@(
+                's3'))
+        }
+        'help' {
+            $prefix.AddRange(@(
+                'help'))
+        }
+        'OutputYamlStream' {
+            $prefix.AddRange(@(
+                '--output', 'yaml-stream'))
+        }
+        'OutputYaml' {
+            $prefix.AddRange(@(
+                '--output', 'yaml'))
+        }
+        'OutputJson' {
+            $prefix.AddRange(@(
+                '--output', 'json'))
+        }
+        'OutputText' {
+            $prefix.AddRange(@(
+                '--output', 'text'))
+        }
+        'OutputTable' {
+            $prefix.AddRange(@(
+                '--output', 'table'))
+        }
+        { $_ -in @('NoAutoPrompt', 'No-AutoPrompt') } {
+            # WithDry run, is now a no-op error
+        }
+        default {
+            "Unhandled -Template name: '{0}'" -f ( $Switch -join ', ' )
+            | write-error
+            continue
+        }
+    }
+    if($PrefixArgs.count -gt 0) {
+        $binArgs.AddRange(@( $PrefixArgs))
+    }
+
+    $binArgs.AddRange(@(
+        $prefix ))
+
+    if($AppendArgs.count -gt 0) {
+        $binArgs.AddRange(@( $AppendArgs))
+    }
+
+    # $script:Aws_LastBinArgs = $BinArgs
+
+    if($Preview) {
+        $binArgs | Bv.PreviewArgs
+    }
+    return $binArgs
+
+    # $binArgs.AddRange(@(
+    #     '--profile', 'jake'))
+
+    # $binArgs.AddRange(@(
+    #     's3' ))
+
+    # $binArgs.AddRange(@(
+    #     'ls' ))
+}
+
+function Bintils.Aws.Help {
     [Alias('Aws.Help')]
     [CmdletBinding()]
     param()
@@ -24,7 +176,7 @@ AwsVersion: $(aws --version)
     $DocRecord.Contents | Join-String -sep "`n" | Write-information -infa 'Continue'
     return [pscustomobject]$docRecord
 }
-function Bintils.AwsCli.GetConfigObject {
+function Bintils.Aws.GetConfigObject {
     <#
     .SYNOPSIS
 
@@ -50,7 +202,7 @@ class AwsCliBintilsCompletionResult {
     }
 }
 
-function New.Bintil.CompletionResult {
+function New.Aws.CompletionResult {
     [Alias(
         'New.AwsBintil.CR',
         'New.AwsCR',
@@ -140,10 +292,10 @@ function __module.AwsCli.buildCompletions {
     #>
     param()
     @(
-        New.Bintil.CompletionResult -Text 'CliAutoPrompt' -Replacement '--cli-auto-prompt' -ResultType ParameterValue -Tooltip 'force prompt'
-        New.Bintil.CompletionResult -Text 'NoCliAutoPrompt' -Replacement '--no-cli-auto-prompt' -ResultType ParameterValue -Tooltip 'disable prompt, required for commands like docker login'
+        New.Aws.CompletionResult -Text 'CliAutoPrompt' -Replacement '--cli-auto-prompt' -ResultType ParameterValue -Tooltip 'force prompt'
+        New.Aws.CompletionResult -Text 'NoCliAutoPrompt' -Replacement '--no-cli-auto-prompt' -ResultType ParameterValue -Tooltip 'disable prompt, required for commands like docker login'
 # '@
-#         New.Bintil.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip @'
+#         New.Aws.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip @'
 # see:
 
 # - https:// foo.com
@@ -167,7 +319,7 @@ class AwsCliProfileNameCompleter : IArgumentCompleter {
     # hidden [string]$CompleteAs = 'Name'
     # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
     # AwsCliProfileNameCompleter([int] $from, [int] $to, [int] $step) {
-    AwsCliProfileNameCompleter( ) { }
+    AwsProfileNameCompleter( ) { }
     [IEnumerable[CompletionResult]] CompleteArgument(
         [string] $CommandName,
         [string] $parameterName,
@@ -182,7 +334,7 @@ class AwsCliProfileNameCompleter : IArgumentCompleter {
                         New.Cr -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "mode here"
                     }
 
-                # (Bintils.AwsCli.Parse.Logs -AsObject -infa Ignore).Keys | Sort-Object -Unique
+                # (Bintils.Aws.Parse.Logs -AsObject -infa Ignore).Keys | Sort-Object -Unique
                 # | ?{ $_ -match $wordToComplete }
             ) | ?{
                  $_.ListItemText -match $WordToComplete
@@ -191,52 +343,52 @@ class AwsCliProfileNameCompleter : IArgumentCompleter {
         return $found
     }
 }
-class AwsCliProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
+class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
     <#
     .example
-        Pwsh> [AwsCliProfileNameCompletionsAttribute]::new()
-        Pwsh> [AwsCliProfileNameCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
+        Pwsh> [AwsProfileNameCompletionsAttribute]::new()
+        Pwsh> [AwsProfileNameCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
     #>
     [hashtable]$Options = @{}
-    AwsCliProfileNameCompletionsAttribute() { }
+    AwsProfileNameCompletionsAttribute() { }
 
     [IArgumentCompleter] Create() {
-        return [AwsCliProfileNameCompleter]::new()
+        return [AwsProfileNameCompleter]::new()
     }
 }
 
 
-class AwsCliCompleter : IArgumentCompleter {
+class AwsCompleter : IArgumentCompleter {
 
     # hidden [hashtable]$Options = @{
         # CompleteAs = 'Name'
     # }
     # hidden [string]$CompleteAs = 'Name'
     # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
-    # AwsCliCompleter([int] $from, [int] $to, [int] $step) {
-    AwsCliCompleter( ) {
+    # AwsCompleter([int] $from, [int] $to, [int] $step) {
+    AwsCompleter( ) {
         # $This.Options = @{
         #     # ExcludeDateTimeFormatInfoPatterns = $true
         #     CompleteAs = 'Name'
         # }
 
         # $this.Options
-        #     | WriteJsonLog -Text '🚀 [AwsCliCompleter]::ctor'
+        #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
     }
-    # AwsCliCompleter( $options ) {
-    # AwsCliCompleter( $SomeParam = $false ) {
-    # AwsCliCompleter( [string]$CompleteAs = 'Name'  ) {
+    # AwsCompleter( $options ) {
+    # AwsCompleter( $SomeParam = $false ) {
+    # AwsCompleter( [string]$CompleteAs = 'Name'  ) {
         # $this.SomeParam = $SomeParam
         # $This.Options.CompleteAs = $CompleteAs
         # $This.CompleteAs = $CompleteAs
         # $this.Options
-        #     | WriteJsonLog -Text '🚀 [AwsCliCompleter]::ctor | SomeParam'
+        #     | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor | SomeParam'
 
         # $PSCommandPath | Join-String -op 'not finished: Exclude property is not implemented yet,  ' | write-warning
 
         # $this.Options = $Options ?? @{}
         # $Options
-            # | WriteJsonLog -Text '🚀 [AwsCliCompleter]::ctor'
+            # | WriteJsonLog -Text '🚀 [AwsCompleter]::ctor'
         # if ($from -gt $to) {
         #     throw [ArgumentOutOfRangeException]::new("from")
         # }
@@ -274,49 +426,49 @@ class AwsCliCompleter : IArgumentCompleter {
         # }
         # todo: pass query string filter
         [List[CompletionResult]]$found = @(
-                __module.AwsCli.buildCompletions
+                __module.Aws.buildCompletions
             )
         return $found
     }
 
 }
 
-class AwsCliCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
+class AwsCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
     <#
     .example
-        Pwsh> [AwsCliCompletionsAttribute]::new()
-        Pwsh> [AwsCliCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
+        Pwsh> [AwsCompletionsAttribute]::new()
+        Pwsh> [AwsCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
     #>
     [hashtable]$Options = @{}
-    AwsCliCompletionsAttribute() {
+    AwsCompletionsAttribute() {
         # $this.Options = @{
         #     CompleteAs = 'Name'
         # }
         # $this.Options
-        #     | WriteJsonLog -Text  '🚀AwsCliCompletionsAttribute::new()'
+        #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new()'
     }
-    AwsCliCompletionsAttribute( [string]$CompleteAs = 'Name' ) {
+    AwsCompletionsAttribute( [string]$CompleteAs = 'Name' ) {
         # $this.Options.CompleteAs = $CompleteAs
         # $this.Options
-        #     | WriteJsonLog -Text  '🚀AwsCliCompletionsAttribute::new | completeAs'
+        #     | WriteJsonLog -Text  '🚀AwsCompletionsAttribute::new | completeAs'
     }
 
     [IArgumentCompleter] Create() {
-        # return [AwsCliCompleter]::new($this.From, $this.To, $this.Step)
-        # return [AwsCliCompleter]::new( @{} )
-        # '🚀AwsCliCompletionsAttribute..Create()'
+        # return [AwsCompleter]::new($this.From, $this.To, $this.Step)
+        # return [AwsCompleter]::new( @{} )
+        # '🚀AwsCompletionsAttribute..Create()'
         #     | WriteJsonLog -PassThru
             # | .Log -Passthru
         # $This.Options
         #     | WriteJsonLog -PassThru
 
-        return [AwsCliCompleter]::new()
+        return [AwsCompleter]::new()
         # if( $This.Options.ExcludeDateTimeFormatInfoPatterns ) {
-        #     return [AwsCliCompleter]::new( @{
+        #     return [AwsCompleter]::new( @{
         #         ExcludeDateTimeFormatInfoPatterns = $This.Options.ExcludeDateTimeFormatInfoPatterns
         #     } )
         # } else {
-        #     return [AwsCliCompleter]::new()
+        #     return [AwsCompleter]::new()
         # }
     }
 }
@@ -324,7 +476,7 @@ class AwsCliCompletionsAttribute : ArgumentCompleterAttribute, IArgumentComplete
 $scriptBlockNativeCompleter = {
     # param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
     param($wordToComplete, $commandAst, $cursorPosition)
-    [List[AwsCliBintilsCompletionResult]]$items = @( __module.AwsCli.buildCompletions )
+    [List[AwsBintilsCompletionResult]]$items = @( __module.Aws.buildCompletions )
 
     $FilterProp =
         'ListItemText' # 'CompletionText'
@@ -413,17 +565,27 @@ $scriptBlockNativeCompleter = {
     return $final_CE
 
 }
-__module.AwsCli.OnInit
+__module.Aws.OnInit
 Register-ArgumentCompleter -CommandName 'Aws' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
 
 # note: Aws.* will export if you import this module directly
 # but importing bintils itself, will not export
 export-moduleMember -function @(
-    'Aws.*'
-    'AwsCli.*'
-    'Bintils.AwsCli.*'
+    if($__moduleConfig.ExportPrefix_Cli) {
+        'Aws.*'
+        'Bintils.Aws.*'
+    }
+    if($__moduleConfig.ExportPrefix_AwsCli) {
+        'AwsCli.*'
+        'Bintils.AwsCli.*'
+    }
 ) -Alias @(
-    'Aws.*'
-    'AwsCli.*'
-    'Bintils.AwsCli.*'
+    if($__moduleConfig.ExportPrefix_Cli) {
+        'Aws.*'
+        'Bintils.Aws.*'
+    }
+    if($__moduleConfig.ExportPrefix_AwsCli) {
+        'AwsCli.*'
+        'Bintils.AwsCli.*'
+    }
 )
