@@ -8,6 +8,7 @@ $importModuleSplat = @{
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './bintils.common.psm1')
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.wsl.psm1')
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.docker.psm1')
+Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.AwsCli.psm1')
 Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.lucidlink.psm1')
 
 # Import-Module @importModuleSplat (Join-path $PSScriptRoot './Completers/bintils.completers.docker.psm1')
