@@ -315,33 +315,7 @@ function __module.AwsCli.buildCompletions {
     | Sort-Object 'CompletionText' -Unique
     | __SortIt.WithoutPrefix 'ListItemText'
 }
-class AwsProfileTemplateFactoryNameCompleter : IArgumentCompleter {
-    # hidden [hashtable]$Options = @{
-        # CompleteAs = 'Name'
-    # }
-    # hidden [string]$CompleteAs = 'Name'
-    # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
-    # AwsProfileTemplateFactoryNameCompleter([int] $from, [int] $to, [int] $step) {
-    AwsProfileTemplateFactoryNameCompleter( ) { }
-    [IEnumerable[CompletionResult]] CompleteArgument(
-        [string] $CommandName,
-        [string] $parameterName,
-        [string] $wordToComplete,
-        [CommandAst] $commandAst,
-        [IDictionary] $fakeBoundParameters) {
 
-        [List[CompletionResult]]$found = @(
-                $records = @( 'BDG', 'jake')
-                    | Sort-Object -Unique | %{
-                        New.AwsCR -ListItemText $_ -CompletionText $_ -ResultType ParameterValue -Tooltip "Aws ProfileName: 'aws config list-profile'"
-                    }
-            ) | ?{
-                 $_.ListItemText -match $WordToComplete
-             }
-        # $found | ConvertTo-Json | Add-Content 'temp:\last.log' -ea 'continue'
-        return $found
-    }
-}
 class AwsProfileNameArgumentCompleter : IArgumentCompleter {
     <#
         it supports names with spaces
@@ -397,17 +371,17 @@ class AwsProfileNameArgumentCompleter : IArgumentCompleter {
         return $Completions
     }
 }
-class AwsProfileTemplateFactoryNameCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
+class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgumentCompleterFactory {
     <#
     .example
-        Pwsh> [AwsProfileTemplateFactoryNameCompletionsAttribute]::new()
-        Pwsh> [AwsProfileTemplateFactoryNameCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
+        Pwsh> [AwsProfileNameCompletionsAttribute]::new()
+        Pwsh> [AwsProfileNameCompletionsAttribute]::new( CompleteAs = 'Name|Value' )
     #>
     [hashtable]$Options = @{}
-    AwsProfileTemplateFactoryNameCompletionsAttribute() { }
+    AwsProfileNameCompletionsAttribute() { }
 
     [IArgumentCompleter] Create() {
-        return [AwsProfileTemplateFactoryNameCompleter]::new()
+        return [AwsProfileNameArgumentCompleter]::new()
     }
 }
 
