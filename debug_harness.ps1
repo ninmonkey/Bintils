@@ -2,8 +2,9 @@
 
 # write-warning 'to do: H:\data\client_bdg\2023.11-bdg-s3-aws-lambda-app\LambUtils.psm1'
 
-
-
+err -clear
+impo -force -passthru 'H:\data\2023\pwsh\PsModules\Bintils\Completers\bintils.completers.AwsCli.psm1'
+gcm -m bintils.completers.AwsCli | ft
 
 
 

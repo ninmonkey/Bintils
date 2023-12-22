@@ -7,7 +7,7 @@ using namespace System.Collections.ObjectModel
 # [Collections.ObjectModel.ReadOnlyCollection[CommandElementAst]]
 
 $script:__moduleConfig = @{
-    ExportPrefix_AwsCli = $false # export names that match: 'AwsCli.*'
+    ExportPrefix_AwsCli = $true # export names that match: 'AwsCli.*'
     ExportPrefix_Aws = $true     # export names that match: 'Aws.*'
 }
 
@@ -292,7 +292,7 @@ function __module.AwsCli.buildCompletions {
     #>
     param()
     @(
-        New.Aws.CompletionResult -Text 'CliAutoPrompt' -Replacement '--cli-auto-prompt' -ResultType ParameterValue -Tooltip 'force prompt'
+        New.Aws.CompletionResult -Text 'CliAutoPrompt' -Replacement '--cli-auto-prompt' -ResultType ([CompletionResultType]::ParameterName) -Tooltip 'force prompt'
         New.Aws.CompletionResult -Text 'NoCliAutoPrompt' -Replacement '--no-cli-auto-prompt' -ResultType ParameterValue -Tooltip 'disable prompt, required for commands like docker login'
 # '@
 #         New.Aws.CompletionResult -Text 'Example.Run' -Replacement "run --interactive --tty ubuntu /bin/bash" -ResultType ParameterValue -Tooltip @'
@@ -312,13 +312,13 @@ function __module.AwsCli.buildCompletions {
     | Sort-Object 'CompletionText' -Unique
     | __SortIt.WithoutPrefix 'ListItemText'
 }
-class AwsCliProfileNameCompleter : IArgumentCompleter {
+class AwsProfileNameCompleter : IArgumentCompleter {
     # hidden [hashtable]$Options = @{
         # CompleteAs = 'Name'
     # }
     # hidden [string]$CompleteAs = 'Name'
     # [bool]$ExcludeDateTimeFormatInfoPatterns = $false
-    # AwsCliProfileNameCompleter([int] $from, [int] $to, [int] $step) {
+    # AwsProfileNameCompleter([int] $from, [int] $to, [int] $step) {
     AwsProfileNameCompleter( ) { }
     [IEnumerable[CompletionResult]] CompleteArgument(
         [string] $CommandName,
@@ -548,25 +548,31 @@ $scriptBlockNativeCompleter = {
     $final_CE = [List[CompletionResult]]@( $selected.ToCompletion() ) # should declare an auto coercable  class
     if($final_CE.Count -eq 0){
         [string]$render_tooltip = @(
-            'Special 0 matches found, tooltip'
-            Join-String -f 'Word: {0}' -in $wordToComplete
-            $commandAst | JOin-String -sep ', ' { $_.ToString() }
-            Join-String -op 'cusor pos' -In $cursorPosition
-        ) | Join-String -sep "`n" -op "debug tooltip`n"
+            # 'Special 0 matches found, tooltip'
+            # Join-String -f 'Word: {0}' -in $wordToComplete
+            # $commandAst | JOin-String -sep ', ' { $_.ToString() }
+            # Join-String -op 'cusor pos' -In $cursorPosition
+            'special 0 results, fallback completer'
+        ) | Join-String -sep "`n"
+
         $final_CE.add(
             [CompletionResult]::new(
-                <# completionText: #> '😢',
-                <# listItemText: #> '😢',
-                <# resultType: #> [CompletionResultType]::Text,
+                <# completionText: #> 'help',
+                <# listItemText: #> '--help',
+                <# resultType: #> [CompletionResultType]::ParameterValue,
                 <# toolTip: #> $render_tooltip)
         )
     }
 
     return $final_CE
-
 }
-__module.Aws.OnInit
-Register-ArgumentCompleter -CommandName 'Aws' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
+function __module.Aws.OnInit {
+    param()
+    'Bintils.Aws::Init' | write-verbose -Verbose
+    # gcm 'AwsCli*'
+    # gcm 'Aws.*'
+    # gcm -m bintils.completers.AwsCli
+}
 
 # note: Aws.* will export if you import this module directly
 # but importing bintils itself, will not export
@@ -589,3 +595,7 @@ export-moduleMember -function @(
         'Bintils.AwsCli.*'
     }
 )
+
+Register-ArgumentCompleter -CommandName 'AwsCli' -Native -ScriptBlock $ScriptBlockNativeCompleter -Verbose
+
+__module.Aws.OnInit
