@@ -372,8 +372,15 @@ function Bintils.Aws.Help {
 
 AwsVersion: $(aws --version)
 
-- [Troubleshooting docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-troubleshooting.html)
+- [Shorthand syntax](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-shorthand.html#shorthand-list-parameters)
+- [using yaml-stream](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-output-format.html)
 - [cli skeleton](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-skeleton.html): Most of the AWS Command Line Interface (AWS CLI) commands accept all parameter inputs from a file. These templates can be generated using the generate-cli-skeleton option
+- [Common Parameter Datatypes](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-types.html)
+- [using wizards](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-wizard.html)
+    - [wizards live folder](https://github.com/aws/aws-cli/tree/v2/awscli/customizations/wizard/wizards)
+- [Parameters from files](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-file.html)
+- [Troubleshooting docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-troubleshooting.html)
+- [auto prompt, fuzzy search](https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-parameters-prompting.html)
 
 Example invoke:
 
@@ -678,7 +685,11 @@ class AwsProfileNameCompletionsAttribute : ArgumentCompleterAttribute, IArgument
     }
 }
 
-
+function Bintils.Aws.WhoAmI {
+    # https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-alias.html
+    Aws.InvokeBin -BinArgs (
+        Aws.BuildBinArgs NoCliAutoPrompt -AppendArgs 'sts', 'get-caller-identity' )
+}
 function Bintils.Aws.IAM.ListGroups {
     [Alias(
         'Aws.IAM.ListGroups'
@@ -690,8 +701,12 @@ function Bintils.Aws.IAM.ListGroups {
 
         [Alias('AsJson', 'RawJson')][switch]$PassThru
     )
+    write-warning 'function wip, double check parameters completing is still working'
     # write-debug 'future: auto cache web requests'
+
     'Profile: {0}' -f $Profile | Write-verbose
+
+    write-warning 'something broke in Iam.ListGroups completer, try restarting session. menucomplete says param type is [object], maybe completer type broke'
 
     if( $PassThru) {
         $binArgs = Aws.BuildBinArgs -Templates NoCliAutoPrompt, OutputJson -Args 'iam', 'list-groups', '--profile', $Profile
