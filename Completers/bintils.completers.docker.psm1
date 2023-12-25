@@ -81,6 +81,9 @@ try
     $binArgs | Join-String -sep ' ' -op 'fd args => ' | write-verbose -verb
     & fd @binArgs
 }
+
+
+
 function New.CompletionResult {
     [Alias('New.CR')]
     param(
@@ -388,7 +391,121 @@ function Bintils.Docker.SBom {
     # todo: should be using build template and auto log native commands
     & docker @binArgs
 }
+class NamedLocations {
+    # ex: see: Bintils.Docker.Config.FindLocations
+    [string]$Name
+    [string]$Group
+    [string]$Description
+    [object]$Path
+}
 
+function Bintils.Docker.Config.FindLocations {
+    <#
+    .SYNOPSIS
+        find misc docker config locations
+    .example
+         Bintils.Docker.Config.FindLocations
+    .link
+        https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file
+    .link
+        https://docs.docker.com/config/containers/logging/
+    .notes
+        C:\Program Files\Docker\Docker\resources
+    #>
+    [Alias('Bintils.Docker.DockerD.Config.FindLocations')]
+    [OutputType([NamedLocations])]
+    [CmdletBinding()]
+    param()
+
+    [List[NamedLocations]]$Locations = @(
+        # [NamedLocations]@{
+        #     Name =
+        # }
+    )
+
+@'
+- searching paths:
+
+    /etc/docker/daemon.json
+    C:\Program Files' 'Docker'
+    $Env:ProgramData 'docker/config/daemon.json'
+    ... more... see source for details
+'@ | Join-String -sep "`n" -op (Join-String -f "from {0} =>`n" -in $MyInvocation.MyCommand.Name)
+    | write-verbose
+
+    if($IsWindows) {
+
+
+        $locations.Add( [NamedLocations]@{
+                Name = 'linux-daemon-options.json (ProgramFiles)'
+                Description = 'linux-daemon-options.json'
+                Group = 'Static.Manually.Added'
+                Path = (Join-path $env:ProgramFiles 'Docker/Docker/resources/linux-daemon-options.json')
+            })
+        $locations.Add( [NamedLocations]@{
+                Name = 'app.json (ProgramFiles)'
+                Description = 'app.json. https://github.com/docker/cli/blob/master/cli/config/configfile/file.go'
+                Group = 'Static.Manually.Added'
+                Path = (Join-path $env:ProgramFiles 'Docker/Docker/app.json')
+            })
+        $locations.Add( [NamedLocations]@{
+                Name = 'config-options.json (ProgramFiles)'
+                Description = 'config-options.json. https://github.com/docker/cli/blob/master/cli/config/configfile/file.go'
+                Group = 'Static.Manually.Added'
+                Path = (Join-path $env:ProgramFiles 'Docker/Docker/resources/config-options.json')
+            })
+
+    }
+
+
+    if($IsWindows) {
+        gci -Path (gi 'C:\Program Files\Docker\Docker') *.json -Recurse
+            | ? FullName -notmatch '\bfrontend\b'
+            | %{
+                $locations.Add( [NamedLocations]@{
+                    Name = $_.Name
+                    Description = 'Found under: C:/Program Files/Docker/Docker'
+                    Group = 'Misc Json'
+                    Path = $_.FullName | Get-Item
+                })
+            }
+    }
+
+    # hidden/system files may require -force to find
+    $daemonJson? =
+        if ($IsLinux) {
+            Get-Item -Force -ea 'Ignore' '/etc/docker/daemon.json'}
+        elseif ($IsWindows) {
+            Get-Item -Force -ea 'Ignore' (
+                Join-Path  $Env:ProgramData 'docker/config/daemon.json') }
+
+    $Locations.Add( [NamedLocations]@{
+        Name = 'daemon.json'
+        Description = 'default daemon.json location. https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file. https://docs.docker.com/engine/reference/commandline/dockerd/#default-network-options.'
+        Group = 'Config'
+        Path = $daemonJson? ?? "`u{2400}"
+    })
+
+
+    # fd -e json --search-path (gi (Join-Path $env:AppData 'Docker'))
+    gci (gi (Join-Path 'C:\Program Files' 'Docker')) -Filter *.json -Recurse | %{
+        $Locations.Add( [NamedLocations]@{
+            Name = $_.Name
+            Description = 'Found under: C:/Program Files/Docker'
+            Group = 'Misc Json'
+            Path = $_.FullName | Get-Item
+        })
+    }
+    gci (gi (Join-Path $env:AppData 'Docker')) -Filter *.json -Recurse | %{
+        $Locations.Add( [NamedLocations]@{
+            Name = $_.Name
+            Description = 'Found under: $Env:AppData/Docker'
+            Group = 'Config'
+            Path = $_.FullName | Get-Item
+        })
+    }
+    return $locations
+}
 function Bintils.Docker.Parse.Images {
     <#
     .SYNOPSIS
@@ -630,6 +747,10 @@ function Bintils.Docker.Parse.Containers.Get {
     if($SortyBy -in @('Created', 'Size')) {
         Write-warning 'NYI: todo: parse Created and Size to numerical types'
     }
+
+    $BinArgs | Join-String -sep '' -op 'Docker Containers => '
+        | Bintils.Common.Write-DimText
+        | Write-Information -infa 'continue'
 
     $lines = & docker @BinArgs
         | Select -Skip 1
