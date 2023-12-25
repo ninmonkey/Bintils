@@ -997,6 +997,9 @@ function Bintils.Common.OutJson {
     <#
     .SYNOPSIS
         Sugar to pipe using different views, usually json
+    .EXAMPLE
+        docker inspect $containerName (Bintils.Docker.NewTemplateString Json.All)
+            | Bintils.Common.OutJson Code.Stdin
     #>
     [CmdletBinding()]
     param(
@@ -1012,9 +1015,12 @@ function Bintils.Common.OutJson {
         [Parameter()]
         $Destination,
 
+        [Parameter()]
+        [string]$TempDestination,
+
         # pass through JQ or Convertfrom/To
-        [Alias('NoExpand', 'Minify', 'Min')]
-        [switch]$WithoutExpandWithJq,
+        [Alias('NoExpand', 'Minify', 'Min', 'SkipJqExpand')]
+        [switch]$WithoutAutoExpand,
 
         [switch]$AutoOpenCode,
 
@@ -1032,12 +1038,14 @@ function Bintils.Common.OutJson {
     end {
 
         [List[Object]]$BinArgs = @()
-        [string]$Contents = $Items | Join-String -sep  "`n"
+        [string]$Contents = ''
 
-        if(-not $WithoutExpandWithJq){
+        if( $WithoutAutoExpand ){
+            $Contents = $Items | Join-String -sep  "`n"
+        } else {
             'auto expanding with jq else pwsh' | write-verbose
             if( (Bintils.Common.Test-UserHasNativeCommand -CommandName 'jq')) {
-                $Contents = $Contents | jq
+                $Contents = $Contents | jq #@('.')
             }
             else {
                 $Contents = $Contents | ConvertFrom-Json -depth 12 | ConvertTo-Json
@@ -1048,6 +1056,9 @@ function Bintils.Common.OutJson {
             'Temp' {
                 if( $PSBoundParameters.ContainsKey('Destination')) {
                     $DestPath = $Destination
+                } elseif ( $PSBoundParameters.ContainsKey('TempDestination')) {
+                    $DestPath =
+                        Join-Path Temp: 'Bintils.OutJson' $TempDestination
                 } else {
                     $DestPath = Join-path Temp: 'lastOut.json'
                 }
@@ -1056,7 +1067,8 @@ function Bintils.Common.OutJson {
                     | Bintils.Common.Write-DimText | Write-Information -infa 'Continue'
 
                 if($AutoOpenCode) {
-                    $binArgs = @('--goto', $destPath )
+                    $binArgs = @(
+                        '--goto' ; Get-Item $DestPath )
                     & code @binArgs
                 }
                 break
