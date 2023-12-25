@@ -392,7 +392,6 @@ function Bintils.Docker.SBom {
     & docker @binArgs
 }
 class NamedLocations {
-    # ex: see: Bintils.Docker.Config.FindLocations
     [string]$Name
     [string]$Group
     [string]$Description
@@ -407,9 +406,8 @@ function Bintils.Docker.Config.FindLocations {
          Bintils.Docker.Config.FindLocations
     .link
         https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file
-    .link
-        https://docs.docker.com/config/containers/logging/
     .notes
+
         C:\Program Files\Docker\Docker\resources
     #>
     [Alias('Bintils.Docker.DockerD.Config.FindLocations')]
@@ -429,16 +427,15 @@ function Bintils.Docker.Config.FindLocations {
     /etc/docker/daemon.json
     C:\Program Files' 'Docker'
     $Env:ProgramData 'docker/config/daemon.json'
-    ... more... see source for details
 '@ | Join-String -sep "`n" -op (Join-String -f "from {0} =>`n" -in $MyInvocation.MyCommand.Name)
     | write-verbose
 
     if($IsWindows) {
 
-
+            'C:\Program Files\Docker\Docker\'
         $locations.Add( [NamedLocations]@{
                 Name = 'linux-daemon-options.json (ProgramFiles)'
-                Description = 'linux-daemon-options.json'
+                Description = 'app.json'
                 Group = 'Static.Manually.Added'
                 Path = (Join-path $env:ProgramFiles 'Docker/Docker/resources/linux-daemon-options.json')
             })
@@ -474,14 +471,14 @@ function Bintils.Docker.Config.FindLocations {
     # hidden/system files may require -force to find
     $daemonJson? =
         if ($IsLinux) {
-            Get-Item -Force -ea 'Ignore' '/etc/docker/daemon.json'}
+            Get-Item -Force -ea 'silentlycontinue' '/etc/docker/daemon.json'}
         elseif ($IsWindows) {
-            Get-Item -Force -ea 'Ignore' (
+            Get-Item -Force -ea 'silentlycontinue' (
                 Join-Path  $Env:ProgramData 'docker/config/daemon.json') }
 
     $Locations.Add( [NamedLocations]@{
         Name = 'daemon.json'
-        Description = 'default daemon.json location. https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-configuration-file. https://docs.docker.com/engine/reference/commandline/dockerd/#default-network-options.'
+        Description = 'default daemon.json location'
         Group = 'Config'
         Path = $daemonJson? ?? "`u{2400}"
     })
@@ -662,6 +659,100 @@ $
     return $found
 
 }
+
+function Bintils.Docker.NewTemplateString {
+    <#
+    .SYNOPSIS
+    .notes
+        See Formatting functions: https://docs.docker.com/config/formatting/
+        # table specifies which fields you want to see its output.
+        > docker inspect --format '{{join .Args " , "}}' container
+
+        # json encode values
+        > docker inspect --format '{{json .Mounts}}' container
+
+        # join and split
+        # split slices a string into a list of strings separated by a separator.
+        > docker inspect --format '{{join .Args " , "}}' container
+        > docker inspect --format '{{split .Image ":"}}' container
+
+        # lower/title cases
+        > docker inspect --format "{{lower .Name}}" container
+        > docker inspect --format "{{title .Name}}" container
+    .EXAMPLE
+        docker inspect $containerName (Bintils.Docker.NewTemplateString Json.All)
+    .link
+        https://docs.docker.com/config/formatting/
+    #>
+    param(
+        [ValidateSet(
+            'Hint',
+            'Json.All',
+            'Json.Dot',
+            'Join.Args'
+        )]
+        [string]$TemplateName = 'Hint',
+        [switch]$AutoEscapeDoubleQuotes
+    )
+    [string]$Template = ''
+    if(-not $PSBoundParameters.ContainsKey('AutoEscapeDoubleQuotes') ) {
+        if( $IsWindows ) { $AutoEscapeDoubleQuotes = $true }
+        else { $AutoEscapeDoubleQuotes = $false}
+    }
+
+    switch($TemplateName) {
+        { $_ -in @('Hint', 'Json.All')} {
+            $template = @'
+--format='{{json .}}'
+'@
+            break
+        }
+        'JoinArgs' {
+            # join concatenates a list of strings to create a single string. It puts a separator between each element in the list.
+            $template = '{{join .Args " , "}}'
+        }
+        default {
+            throw "Unhandled TemplateName for NewTemplateFormatString: $TemplateName"
+        }
+    }
+    if($AutoEscapeDoubleQuotes) {
+        $template = $template -replace '"', '\"'
+    }
+    return $template
+}
+
+function Bintils.Docker.PipeJson {
+    <#
+    .synopsis
+        Sometimes json comes back as quoted, 
+    #>
+    param(
+        [string[]]$Lines
+    )
+    docker inspect $containerName (Bintils.Docker.NewTemplateString Json.All)
+}
+
+function Bintils.Docker.Inspect {
+    param(
+        [ValidateNotNullOrWhitespace()]
+        [string]$ContainerName,
+
+        # return as the original, text document rather than objects
+        [Alias('AsText', 'AsJson')]
+        [switch]$PassThru
+    )
+
+    [List[Object]]$binArgs = @(
+        'inspect'
+        $ContainerName
+    )
+
+    $result = & docker @binArgs
+    if( $PassThru ) { return $result  }
+
+    $result | Json.From
+    return
+}
 function Bintils.Docker.Parse.Containers.Get {
     <#
     .SYNOPSIS
@@ -730,6 +821,7 @@ function Bintils.Docker.Parse.Containers.Get {
     )
     [List[Object]]$BinArgs = @(
         'container'
+        'ls'
         if( $IncludeNotRunning) { '--all' }
         if( $ShowSize ) { '--size' }
         if( $Filter ) { '--filter' }
@@ -748,9 +840,10 @@ function Bintils.Docker.Parse.Containers.Get {
         Write-warning 'NYI: todo: parse Created and Size to numerical types'
     }
 
-    $BinArgs | Join-String -sep '' -op 'Docker Containers => '
+    $BinArgs | Join-String -sep ' ' -op 'Docker Containers => '
         | Bintils.Common.Write-DimText
         | Write-Information -infa 'continue'
+
 
     $lines = & docker @BinArgs
         | Select -Skip 1

@@ -16,6 +16,16 @@ docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}
 # filter syntax: https://docs.docker.com/engine/reference/commandline/image_prune/#filter
 docker image prune -a --force --filter "until=240h"
 ```
+## docker Go format string syntax
+
+https://docs.docker.com/config/formatting/
+
+```ps1
+# nix
+docker inspect --format '{{join .Args " , "}}' container
+# windows pwsh
+docker inspect --format '{{join .Args \" , \"}}' container
+```
 
 ## misc commands dump
 
