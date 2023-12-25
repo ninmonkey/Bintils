@@ -993,6 +993,103 @@ function Bintils.Common.Config.Get {
     return $script:BC_AppConfig
 }
 
+function Bintils.Common.OutJson {
+    <#
+    .SYNOPSIS
+        Sugar to pipe using different views, usually json
+    #>
+    [CmdletBinding()]
+    param(
+        [ValidateSet(
+            'Temp',
+            'Code.Stdin',
+            'Bat'
+        )]
+        [Parameter(Mandatory, Position=0)]
+        [string]$OutputMode,
+
+
+        [Parameter()]
+        $Destination,
+
+        # pass through JQ or Convertfrom/To
+        [Alias('NoExpand', 'Minify', 'Min')]
+        [switch]$WithoutExpandWithJq,
+
+        [switch]$AutoOpenCode,
+
+        [Alias('InputObject', 'Text', 'InText', 'InStr', 'Str')]
+        [Parameter(mandatory, ValueFromPipeline)]
+        [string[]]
+        $Lines
+    )
+    begin {
+        [List[Object]]$Items = @()
+    }
+    process {
+        foreach($curLine in $Lines) { $Items.Add( $curLine )}
+    }
+    end {
+
+        [List[Object]]$BinArgs = @()
+        [string]$Contents = $Items | Join-String -sep  "`n"
+
+        if(-not $WithoutExpandWithJq){
+            'auto expanding with jq else pwsh' | write-verbose
+            if( (Bintils.Common.Test-UserHasNativeCommand -CommandName 'jq')) {
+                $Contents = $Contents | jq
+            }
+            else {
+                $Contents = $Contents | ConvertFrom-Json -depth 12 | ConvertTo-Json
+            }
+        }
+
+        switch($OutputMode) {
+            'Temp' {
+                if( $PSBoundParameters.ContainsKey('Destination')) {
+                    $DestPath = $Destination
+                } else {
+                    $DestPath = Join-path Temp: 'lastOut.json'
+                }
+                $contents | Set-Content -path $DestPath
+                'wrote: {0}' -f $DestPath
+                    | Bintils.Common.Write-DimText | Write-Information -infa 'Continue'
+
+                if($AutoOpenCode) {
+                    $binArgs = @('--goto', $destPath )
+                    & code @binArgs
+                }
+                break
+            }
+            'Code.Stdin' {
+                $binArgs = '-'
+                $Contents | code @binArgs
+                break
+            }
+            'Bat' {
+                $binArgs.AddRange(@(
+                    '-l'
+                    'json'
+                    '--force-colorization' # Alias for '--decorations=always --color=always'.
+                    # '--color', 'always'
+                    '--file-name', 'Bintils.Common.OutJson.json'
+                    if($false) {
+                        '--wrap', 'auto'
+                        '--wrap', 'never'
+                        '--wrap', $count
+                    }
+                ))
+                $Contents | bat @binArgs
+                break
+            }
+            default {
+                throw "UnhandledOutputMode: $OutputMode"
+            }
+        }
+    }
+
+}
+
 
 
 Export-ModuleMember -Function @(

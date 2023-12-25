@@ -660,6 +660,29 @@ $
 
 }
 
+function Bintils.Docker.NewFilterString {
+    # https://docs.docker.com/config/filter/
+        <#
+    .SYNOPSIS
+    .notes
+        See also Formatting functions: https://docs.docker.com/config/formatting/
+    .EXAMPLE
+
+    .link
+        https://docs.docker.com/config/filter/
+    .link
+        https://docs.docker.com/config/formatting/
+    #>
+    param(
+        [ValidateSet(
+            'Today'
+        )]
+        [string]$TemplateName = 'Today'
+    )
+
+    throw 'nyi, similar template as "Bintils.Docker.NewTemplateString"'
+    [string]$template = ''
+}
 function Bintils.Docker.NewTemplateString {
     <#
     .SYNOPSIS
@@ -679,6 +702,12 @@ function Bintils.Docker.NewTemplateString {
         # lower/title cases
         > docker inspect --format "{{lower .Name}}" container
         > docker inspect --format "{{title .Name}}" container
+
+        # println each value on a new line
+        > docker inspect --format='{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' container
+
+        # show *everything* as json
+        docker container ls --format='{{json .}}'
     .EXAMPLE
         docker inspect $containerName (Bintils.Docker.NewTemplateString Json.All)
     .link
@@ -689,10 +718,26 @@ function Bintils.Docker.NewTemplateString {
             'Hint',
             'Json.All',
             'Json.Dot',
+            # 'Join.E',
             'Join.Args'
         )]
-        [string]$TemplateName = 'Hint',
-        [switch]$AutoEscapeDoubleQuotes
+        [string]$TemplateName = 'Json.Dot',
+
+        # windows defaults to on, else off. extra escaping double quotes.
+        [switch]$AutoEscapeDoubleQuotes,
+        [ValidateScript({throw 'nyi'})]
+        [hashtable]$Params,
+
+        # sometimes used in templates
+        [ValidateScript({throw 'nyi'})]
+        [string]$Arg1,
+        # sometimes used in templates
+        [ValidateScript({throw 'nyi'})]
+        [ArgumentCompletions(
+            "'.Args `" , `"'",
+            ".Name"
+        )]
+        [string]$Expression
     )
     [string]$Template = ''
     if(-not $PSBoundParameters.ContainsKey('AutoEscapeDoubleQuotes') ) {
@@ -701,13 +746,16 @@ function Bintils.Docker.NewTemplateString {
     }
 
     switch($TemplateName) {
-        { $_ -in @('Hint', 'Json.All')} {
+        { $_ -in @('Hint', 'Json.All', 'Json.Dot')} {
             $template = @'
---format='{{json .}}'
+--format={{json .}}
 '@
             break
         }
-        'JoinArgs' {
+        'Join.E' {
+
+        }
+        'Join.Args' {
             # join concatenates a list of strings to create a single string. It puts a separator between each element in the list.
             $template = '{{join .Args " , "}}'
         }
@@ -721,16 +769,16 @@ function Bintils.Docker.NewTemplateString {
     return $template
 }
 
-function Bintils.Docker.PipeJson {
-    <#
-    .synopsis
-        Sometimes json comes back as quoted, 
-    #>
-    param(
-        [string[]]$Lines
-    )
-    docker inspect $containerName (Bintils.Docker.NewTemplateString Json.All)
-}
+# function Bintils.Docker.PipeJson {
+#     <#
+#     .synopsis
+#         Sometimes json comes back as quoted,
+#     #>
+#     param(
+#         [string[]]$Lines
+#     )
+#     docker inspect $containerName (Bintils.Docker.NewTemplateString Json.All)
+# }
 
 function Bintils.Docker.Inspect {
     param(
@@ -753,6 +801,7 @@ function Bintils.Docker.Inspect {
     $result | Json.From
     return
 }
+
 function Bintils.Docker.Parse.Containers.Get {
     <#
     .SYNOPSIS
