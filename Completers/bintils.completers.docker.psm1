@@ -809,6 +809,8 @@ function Bintils.Docker.Parse.Containers.Get {
     .EXAMPLE
         Pwsh> Bintils.Docker.Parse.Containers
     .EXAMPLE
+
+        docker container ls --last -1 --no-trunc '--format={{json .}}' | Json.from
     .notes
 
     Usage:  docker images [OPTIONS] [REPOSITORY[:TAG]]
