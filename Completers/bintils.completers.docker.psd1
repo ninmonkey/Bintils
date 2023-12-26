@@ -12,7 +12,7 @@
 RootModule = 'bintils.completers.docker.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.2'
+ModuleVersion = '0.0.4'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -72,7 +72,6 @@ Description = '(minimal) completions for docker'
 FunctionsToExport = @(
     'Docker.*'
     'Wsl.*'
-
     'bDoc.*'
 )
 
@@ -80,7 +79,6 @@ FunctionsToExport = @(
 CmdletsToExport = @(
     'Docker.*'
     'Wsl.*'
-
     'bDoc.*'
 )
 
@@ -88,7 +86,6 @@ CmdletsToExport = @(
 VariablesToExport = @(
     'Docker.*'
     'Wsl.*'
-
 )
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
