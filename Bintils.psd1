@@ -73,6 +73,7 @@ FunctionsToExport = @(
     # export very little if importing this top-level module. maybe *.Common. Otherwise the user can
     'Bintils.Common.*'
     'Bintils.*'
+    # 'bDoc.*' # optional, aggressive Bintils.Docker alias
 
 )
 
@@ -81,10 +82,12 @@ CmdletsToExport = @(
     # export very little if importing this top-level module. maybe *.Common. Otherwise the user can
     'Bintils.Common.*'
     'Bintils.*'
+    # 'bDoc.*' # optional, aggressive Bintils.Docker alias
     # 'Docker.*'
     # 'Wsl.*'
     # 'Bintils.Common.*'
     # 'Bintils.*'
+    # 'bDoc.*' # optional, aggressive Bintils.Docker alias
 
 )
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.

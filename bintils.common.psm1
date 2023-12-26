@@ -1111,68 +1111,25 @@ function Bintils.Common.ParseJson.GetKeys {
         'Bintils.Json.Keys'
     )]
     param(
+
+        [Parameter(mandatory, ValueFromPipeline, ParameterSetName='FromPipeline')]
+        [string[]]$InputJsonDoc,
+
+        [Parameter(mandatory, Position=0, ParameterSetName='FromParam')]
         [string[]]$JsonDoc
     )
-    [List[Object]]$BinArgs = @()
-    [string]$JsonDoc = $JsonDoc | Join-String -sep "`n"
+    end {
+        [List[Object]]$BinArgs = @()
+        [string]$JsonDoc = $JsonDoc | Join-String -sep "`n"
 
-    $binArgs.AddRange(@(
-        '. | keys'
-    ))
-    $jsonDoc
-        | jq @binArgs
-        # | Sort-Object -unique
+        $binArgs.AddRange(@(
+            '. | keys'
+        ))
+        $jsonDoc
+            | jq @binArgs
+            # | Sort-Object -unique
+    }
 }
-# function Bintils.Common.InspectJson {
-#     <#
-#     .SYNOPSIS
-#         Get Keys or inspect json kind
-#     .EXAMPLE
-
-#     .notes
-
-#     #>
-#     [CmdletBinding()]
-#     param(
-#         [ValidateSet(
-#             'Keys.Depth0'
-#         )]
-#         [Parameter(Mandatory, Position=0)]
-#         [string[]]$InspectionTypes,
-#         [Alias('Json', 'InJson', 'Contents', 'InputObject', 'Text', 'InText', 'InStr', 'Str')]
-#         [Parameter(mandatory, ValueFromPipeline)]
-#         [string[]]
-#         $Lines
-#     )
-#     begin {
-#         [List[Object]]$Items = @()
-#     }
-#     process {
-#         foreach($curLine in $Lines) { $Items.Add( $curLine )}
-#     }
-#     end {
-#         $jsonDoc = $Items | Join-String -sep  "`n"
-
-#         [List[Object]]$Query = @()
-#         foreach($TestName in $InspectionType) {
-#             switch($TestName) {
-#                 'Keys.Depth0' {
-#                     $Query.Add()
-#                     [pscustomobject]@{
-#                         TestName = 'Keys.Depth0'
-#                     }
-#                 }
-#                 default {
-#                     throw "UnhandledTestMode: $TestName"
-#                 }
-#             }
-
-#         }
-#     }
-# }
-
-
-
 
 Export-ModuleMember -Function @(
     'Bintils.*'

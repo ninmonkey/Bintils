@@ -5,8 +5,10 @@ using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 
 $script:__moduleConfig = @{
-
+    ExportFunctionPrefix_BDoc = $True
 }
+
+
 
 function Bintils.Docker.Wsl.Help  {
     Get-Command -m Bintils.completers.Docker
@@ -578,6 +580,7 @@ function Bintils.Docker.Parse.Images {
     $Options = @{
         ReplaceNoneString = $ReplaceNoneString # $true
     }
+    write-warning 're-write using json output method'
 
     if($SortyBy -in @('Created', 'Size')) {
         Write-warning 'NYI: todo: parse Created and Size to numerical types'
@@ -808,6 +811,12 @@ function Bintils.Docker.Parse.Containers.Get {
         parse docker containers command
     .EXAMPLE
         Pwsh> Bintils.Docker.Parse.Containers
+        Pwsh> Bintils.Docker.Parse.Containers
+
+    .EXAMPLE
+        > Bintils.Docker.Parse.Containers.Get -IncludeNotRunning |Ft
+        > Bintils.Docker.Parse.Containers.Get | Ft
+
     .EXAMPLE
 
         docker container ls --last -1 --no-trunc '--format={{json .}}' | Json.from
@@ -826,7 +835,115 @@ function Bintils.Docker.Parse.Containers.Get {
         -q, --quiet           Only show image IDs
     #>
     [Alias(
-        'Bintils.Docker.Containers.Ls'
+        'Bintils.Docker.Containers.Ls',
+        'Bintils.Docker.Container',
+        'bDoc.Container.List',
+        'bDoc.Containers',
+        'bDoc.ListContainers'
+
+    )]
+    param(
+        # docker container --all
+        [Parameter()]
+            [Alias('All')]
+            [switch]$IncludeNotRunning,
+
+        # is: docker --size
+        [switch]$ShowSize,
+
+        # is: docker --filter $Filter
+        [string]$Filter,
+
+        # Show n last created containers (includes all states) (default -1)
+        # native command default is -1
+        [Parameter()]
+            [Alias('Limit', 'Count', 'Max', 'CreatedCount')]
+            [int]$LastCreatedCount = -1,
+
+        # Show the latest created container (includes all states). it returns only one.
+        [Parameter()]
+            [Alias('LastOne')]
+            [switch]$LatestOnly
+
+        # [switch]$ReplaceNoneString,
+
+        # # return only the distinct values
+        # [switch]$ListRepoNames,
+
+        # # return only the distinct values
+        # [switch]$ListTagNames,
+
+        # [switch]$SummarizeCounts,
+
+        # [ValidateSet(
+        #     'Repository',
+        #     'Tag',
+        #     'Created',
+        #     'Size',
+        #     'ImageId'
+        # )]
+        # [string]$SortBy
+    )
+    [List[Object]]$BinArgs = @(
+        'container'
+        'ls'
+        if( $IncludeNotRunning) { '--all' }
+        if( $ShowSize ) { '--size' }
+        if( $Filter ) { '--filter' }
+        if( $LatestOnly ) { '--latest' }
+        if( $LastCreatedCount ) { '--last'; $LastCreatedCount }
+        '--no-trunc'
+        '--format={{json .}}'
+        # '--digests'
+    )
+    $Options = @{
+        ReplaceNoneString = $ReplaceNoneString # $true
+    }
+    if($SortyBy -in @('Created', 'Size')) {
+        Write-warning 'NYI: todo: parse Created and Size to numerical types'
+    }
+
+
+    $BinArgs
+        | Join-String -sep ' ' -op 'Docker Containers => '
+        | Bintils.Common.Write-DimText
+        | Write-Information -infa 'continue'
+
+    $query = ($jsonDoc = docker @binArgs) | ConvertFrom-Json
+        | Add-Member -TypeName 'Bintils.Docker.Container.Record' -ea 'ignore' -PassThru
+    return @( $query)
+    # $jsonDoc
+            # | ConvertFrom-Json | %{
+            #     $_ | Add-Member -TypeName 'Bintils.Docker.Container.Record' -Force -ea 'ignore' -PassThru
+            # }
+    # ) #-depth 10
+    # container ls --last -1 --no-trunc '--format={{json .}}'
+}
+function __old__Bintils.Docker.Parse.Containers.Get__iter0 {
+    <#
+    .SYNOPSIS
+        parse docker containers command
+    .EXAMPLE
+        Pwsh> Bintils.Docker.Parse.Containers
+    .EXAMPLE
+
+        docker container ls --last -1 --no-trunc '--format={{json .}}' | Json.from
+    .notes
+
+    Usage:  docker images [OPTIONS] [REPOSITORY[:TAG]]
+
+    List images
+
+        Options:
+        -a, --all             Show all images (default hides intermediate images)
+            --digests         Show digests
+        -f, --filter filter   Filter output based on conditions provided
+            --format string   Pretty-print images using a Go template
+            --no-trunc        Don't truncate output
+        -q, --quiet           Only show image IDs
+    #>
+    [Alias(
+        # 'Bintils.Docker.Containers.Ls'
     )]
     param(
         # docker container --all
@@ -1133,6 +1250,9 @@ $nativeDockerScriptBlock = {
 __module.Docker.OnInit
 Register-ArgumentCompleter -CommandName 'docker' -Native -ScriptBlock $nativeDockerScriptBlock -Verbose
 
+if( $script:__moduleConfig.ExportFunctionPrefix_BDoc ) {
+    New-Alias 'bDoc.Container' 'Bintils.Docker.Containers.Ls' -Description 'Exporting an alias from Bintils.Docker that returns containers as objects' -Scope global -PassThru
+}
 
 # Bintils.Debug.Docker.TestCompleter
 
@@ -1142,11 +1262,18 @@ if($script:__moduleConfig.Debug_ExportPrivateFunctions) {
     export-moduleMember -function @(
         'Docker.*'
         'Bintils.Docker.*'
+        if( $script:__moduleConfig.ExportFunctionPrefix_BDoc ) {
+            'bDoc.*'
+        }
     ) -Alias @(
         'Docker.*'
         'Bintils.Docker.*'
+        if( $script:__moduleConfig.ExportFunctionPrefix_BDoc ) {
+            'bDoc.*'
+        }
     )
 }
+
 # Export-ModuleMember -Function @(
 #     'Bintils.*'
 # ) -Alias @(
