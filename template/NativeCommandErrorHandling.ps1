@@ -113,7 +113,7 @@ function ExampleCatch {
     'Searching for native command ripgrep, fail on purpose' | Write-verbose -verbose
     try {
         GetNativeCommand 'rg_bad_name' -Mandatory -ea 'stop'
-    } catch {
+    } catch [Management.Automation.CommandNotFoundException] {
         'try install ripgrep?' | write-warning
         if ($PSCmdlet.ShouldProcess("RipGrep", "Winget Install")) {
             InvokeNativeCommand 'winget' -ArgList @(
